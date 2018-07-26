@@ -7,7 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2B123D2921009DC20086674A /* makeHelpMessage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B123D2821009DC20086674A /* makeHelpMessage.cpp */; };
+		2B123D2F210228F20086674A /* StopWatch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B123D2D210228F20086674A /* StopWatch.cpp */; };
 		2B6BA9A920FFE33A00DCC3E8 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B6BA9A820FFE33A00DCC3E8 /* main.cpp */; };
+		2B6BA9B120FFED1A00DCC3E8 /* EnergyUsage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B6BA9AF20FFED1A00DCC3E8 /* EnergyUsage.cpp */; };
+		2B9AE1772109E89E007318ED /* HelpMessage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2B9AE1762109E89E007318ED /* HelpMessage.cpp */; };
+		2BD7622221063BF300140F47 /* DateTimeFields.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BD7622121063BF300140F47 /* DateTimeFields.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -23,8 +28,18 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		2B123D2721009DC20086674A /* makeHelpMessage.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = makeHelpMessage.hpp; sourceTree = "<group>"; };
+		2B123D2821009DC20086674A /* makeHelpMessage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = makeHelpMessage.cpp; sourceTree = "<group>"; };
+		2B123D2B210228F20086674A /* varyingType.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = varyingType.hpp; sourceTree = "<group>"; };
+		2B123D2C210228F20086674A /* StopWatch.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = StopWatch.hpp; sourceTree = "<group>"; };
+		2B123D2D210228F20086674A /* StopWatch.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = StopWatch.cpp; sourceTree = "<group>"; };
 		2B6BA9A520FFE33A00DCC3E8 /* computeEnergyUsage */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = computeEnergyUsage; sourceTree = BUILT_PRODUCTS_DIR; };
 		2B6BA9A820FFE33A00DCC3E8 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		2B6BA9AF20FFED1A00DCC3E8 /* EnergyUsage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = EnergyUsage.cpp; sourceTree = "<group>"; };
+		2B6BA9B020FFED1A00DCC3E8 /* EnergyUsage.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = EnergyUsage.hpp; sourceTree = "<group>"; };
+		2B9AE1762109E89E007318ED /* HelpMessage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = HelpMessage.cpp; sourceTree = "<group>"; };
+		2BD7622021060FBE00140F47 /* DateTimeFields.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DateTimeFields.hpp; sourceTree = "<group>"; };
+		2BD7622121063BF300140F47 /* DateTimeFields.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DateTimeFields.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +73,16 @@
 			isa = PBXGroup;
 			children = (
 				2B6BA9A820FFE33A00DCC3E8 /* main.cpp */,
+				2B9AE1762109E89E007318ED /* HelpMessage.cpp */,
+				2B123D2821009DC20086674A /* makeHelpMessage.cpp */,
+				2B123D2721009DC20086674A /* makeHelpMessage.hpp */,
+				2B6BA9AF20FFED1A00DCC3E8 /* EnergyUsage.cpp */,
+				2B6BA9B020FFED1A00DCC3E8 /* EnergyUsage.hpp */,
+				2BD7622021060FBE00140F47 /* DateTimeFields.hpp */,
+				2BD7622121063BF300140F47 /* DateTimeFields.cpp */,
+				2B123D2D210228F20086674A /* StopWatch.cpp */,
+				2B123D2C210228F20086674A /* StopWatch.hpp */,
+				2B123D2B210228F20086674A /* varyingType.hpp */,
 			);
 			path = computeEnergyUsage;
 			sourceTree = "<group>";
@@ -118,7 +143,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2B123D2921009DC20086674A /* makeHelpMessage.cpp in Sources */,
+				2B123D2F210228F20086674A /* StopWatch.cpp in Sources */,
+				2B9AE1772109E89E007318ED /* HelpMessage.cpp in Sources */,
+				2BD7622221063BF300140F47 /* DateTimeFields.cpp in Sources */,
 				2B6BA9A920FFE33A00DCC3E8 /* main.cpp in Sources */,
+				2B6BA9B120FFED1A00DCC3E8 /* EnergyUsage.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -238,6 +268,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				"HEADER_SEARCH_PATHS[arch=*]" = (
+					/usr/local/include,
+					/usr/local/pgsql104/pgsql100400/include,
+				);
+				"LIBRARY_SEARCH_PATHS[arch=*]" = /usr/local/lib;
+				"OTHER_LDFLAGS[arch=*]" = "-lpq";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
