@@ -24,6 +24,8 @@ const char *help_Message[] = {"\nThis program, ", \
     "\n\t--debug2 or -2: provides debugging output of the intermediate results in the selectFromTable.cpp module; this is where the gsl magic happens;", \
     "\n\t--debug3 or -3: provides debugging output of the intermediate results in the insertBucketizedEnergyVariablesIntoTable.cpp module;", \
     "\n\t--debug4 or -4: when present in command line provides the capability of recording ostringstream performance data. Default off.", \
+    "\n\t--tba or -T: when present in command line means that we will be using average daily temperature rather than the default seasonal based approach", \
+    "\n\t  for determining the m2kwh energy usage.", \
     "\n\t--sql or -S: provides SQL statement [[ ***no default***, test purposes only ]];", \
     "\n\t--col or -t: the presence of the `-t` switch indicates that we should use multi-thread, rather than single thread processing techniques. ; ", \
     "\n\t THIS MULTI-THREAD CAPABILIY HAS NOT YET BEEN IMPLEMENTED!"

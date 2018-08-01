@@ -5,16 +5,13 @@
 //  Created by Clifford Campo on 7/18/18.
 //  Copyright © 2018 CliffordCampo. All rights reserved.
 //
-
-
 #include <AvailabilityMacros.h>
 #include <iostream>
 #include <fstream> //Needed for file io.
 #include <thread>
-#define TEXTOID  25
-//#include "/usr/local/pgsql95/pgsql090513/include/libpq-fe.h" //change 2018-07-10T14:23:26 from 090224
-#include <libpq-fe.h>
-//#include <server/catalog/pg_type.h> //Used to define paramTypes's TEXTOID
+#define JUNEFIRST 152
+#define SEPTFIFTEENTH 244+15
+#define SKIPPASTOPENINGSINGLEQUOTE 1 //Account for the opening single quote that festoons the start date&time and the end date&time.
 #include <cstring>
 #include <sstream>
 #include <string>
@@ -29,74 +26,93 @@
 #include "makeHelpMessage.hpp"
 #include "varyingType.hpp"
 #include "StopWatch.hpp"
-#define SECONDARYSQLCOMMANDFAILURE 1
-#define UPDATESQLFAILURE 2
-#define PRIMARYSQLCOMMANDFAILURE 3
-#define INSERTINTOFAILURE 4
-#define PRIMARYCONNECTFAILURE 5
-#define SECONDARYCONNECTFAILURE 6
+extern const char *ptrReturnCodes[];
 extern const char *helpMessage[];
 extern const char *BFM;
+//
 //===========================================================================================
 //
-const char *bestKind[] = {"SELECT coeff[1], coeff[2], coeff[3], coeff[4]  FROM tbl_poly_fit_with_cov WHERE lt::DATE IN (SELECT lt::DATE from tbl_poly_fit_with_cov where abs(correl)::NUMERIC = ( SELECT max(abs(correl)::NUMERIC ) FROM tbl_poly_fit_with_cov where kind=0)) AND kind=0", \
-    "SELECT coeff[1], coeff[2], coeff[3], coeff[4]  FROM tbl_poly_fit_with_cov WHERE lt::DATE IN (SELECT lt::DATE from tbl_poly_fit_with_cov where abs(correl)::NUMERIC = ( SELECT max(abs(correl)::NUMERIC ) FROM tbl_poly_fit_with_cov where kind=0)) AND kind=1", \
-    "SELECT coeff[1], coeff[2], coeff[3], coeff[4]  FROM tbl_poly_fit_with_cov WHERE lt::DATE IN (SELECT lt::DATE from tbl_poly_fit_with_cov where abs(correl)::NUMERIC = ( SELECT max(abs(correl)::NUMERIC ) FROM tbl_poly_fit_with_cov where kind=0)) AND kind=2"};
-Oid bestKindTypes[] = {INT2OID};
-int paramLengthsBestKind[] = {2};
-int paramFormatsBestKind[] = {1};
-int paramValuesBestKind[1];  // Kind is either 0, 1, or 2 in NetworkByteOrder.
-//===========================================================================================
-//
-const char *sql_INSERT_INTO_prototype = "INSERT INTO tbl_modeled_energy_usage (date, time, temperature, siteid, mm1kwh, mm2kwn, mm1m2kwh) VALUES($1, $2, $3, $4,$5, $6, $7);";
-Oid insertIntoTypes[] = {TEXTOID, TEXTOID, FLOAT4OID, INT2OID, FLOAT4OID,FLOAT4OID, FLOAT4OID};
-int paramLengthsForInsert[] = {0,0,4,2,4,4,4};
-int paramFormatsForInsert[] = {0,0,1,1,1,1,1};
-char *paramValuesForInsert[7];  //Values are in network byte order, NBO, which implies BigEndian Format (high-ordered bytes are the left-most bytes).
-//===========================================================================================
-int four = 4;
-int two = 2;
-int zero = 0;
-int myOids[NUMBEROFPARAMETERSFORUPDATE+1] =  {FLOAT4OID, FLOAT4OID, FLOAT4OID,  INT2OID, TEXTOID, TEXTOID};
-const char *sql_UPDATE_prototype = "UPDATE tbl_energy_usage set mm1kwh=$1, mm2kwh=$2, mm1m2kwh=$3 where siteid=$4 AND date::TEXT=$5 AND time::TEXT=$6;";
-Oid updateTypes[NUMBEROFPARAMETERSFORUPDATE+1] = {FLOAT4OID, FLOAT4OID,FLOAT4OID, FLOAT4OID, FLOAT4OID, FLOAT4OID};
-int paramLengths[NUMBEROFPARAMETERSFORUPDATE+1]= {4,4,4,2,0,0};
-int paramFormats[NUMBEROFPARAMETERSFORUPDATE+1]= {1,1,1,1,0,0};
-char *paramValues[NUMBEROFPARAMETERSFORUPDATE+1];
-//===========================================================================================
-//                                              0                                              2                                      3                                                                       4         5
-const char *sql_prototype = "SELECT sum((a.date_part - b.date_part)*b.temperature), sum(a.date_part - b.date_part),  (sum((a.date_part - b.date_part)*b.temperature))/(sum(a.date_part - b.date_part))  \
-FROM \
-(SELECT   lt, temperature, date_part('J', lt) FROM tbl_l where (lt BETWEEN $1 AND $2 ) AND siteid::NUMERIC=$3 ORDER BY lt) a \
-INNER JOIN \
-(SELECT   lt, temperature, date_part('J', lt) FROM tbl_l where (lt BETWEEN $4 AND $5 ) AND siteid::NUMERIC=$6 ORDER BY lt) b \
-ON date_part('J', a.lt::DATE) = 1+date_part('J', b.lt::DATE);";
-/*
- SELECT sum((a.date_part - b.date_part)*b.temperature), sum(a.date_part - b.date_part),  (sum((a.date_part - b.date_part)*b.temperature))/(sum(a.date_part - b.date_part))  AS "WeightedAverageTemperature", avg(a.temperature) AS "AverageAtemperature", avg(b.temperature) AS "AverageBtemperature"
- FROM
- (SELECT   lt, temperature, date_part('J', lt) FROM tbl_l where (lt BETWEEN '2017-11-03 06:35:00' AND '2017-11-04 06:35:00' ) AND siteid::NUMERIC=12 ORDER BY lt) a
- INNER JOIN
- (SELECT   lt, temperature, date_part('J', lt) FROM tbl_l where (lt BETWEEN '2017-11-03 06:35:00' AND '2017-11-04 06:35:00' ) AND siteid::NUMERIC=12 ORDER BY lt) b
- ON date_part('J', a.lt::DATE) = 1+date_part('J', b.lt::DATE);
- */
-//Oid paramTypes[] = {TEXTOID, TEXTOID, TEXTOID, TEXTOID, TEXTOID, TEXTOID};
-Oid paramTypes[] = {TEXTOID, TEXTOID};  //Just the 2 siteid`s
-//===========================================================================================
-const char *moass[] = {"SELECT DISTINCT coeff[1], coeff[2], coeff[3], coeff[4] FROM tbl_poly_fit_with_cov WHERE kind=0 AND abs(correl) = (SELECT max(abs(correl)) FROM tbl_poly_fit_with_cov where kind=0)", \
-    "SELECT DISTINCT coeff[1], coeff[2], coeff[3], coeff[4] FROM tbl_poly_fit_with_cov WHERE kind=1 AND abs(correl) = (SELECT max(abs(correl)) FROM tbl_poly_fit_with_cov where kind=1)", \
-    "SELECT DISTINCT coeff[1], coeff[2], coeff[3], coeff[4] FROM tbl_poly_fit_with_cov WHERE kind=2 AND abs(correl) = (SELECT max(abs(correl)) FROM tbl_poly_fit_with_cov where kind=2)"};
+//The next string of SQL statements is used for determining the m2kwh energy usage for fall, winter and spring seasons [index=0] and the summer season [index=1]
+#define NOTSUMMERSEASON 0
+#define SUMMERSEASON 1
 
-const char *simpleMoass = "SELECT DISTINCT coeff[1], coeff[2], coeff[3], coeff[4] FROM tbl_poly_fit_with_cov) WHERE kind=$1 AND abs(correl) = (SELECT max(abs(correl)) FROM tbl_poly_fit_with_cov where kind=$2 AND NOT (coeff[1] = 'NaN' OR coeff[1] = 'NaN' OR coeff[3] = 'NaN'  OR coeff[4] = 'NaN' OR correl = 'NaN') )";
-Oid paramTypes1[] = {TEXTOID,TEXTOID, TEXTOID,TEXTOID, TEXTOID,TEXTOID};
-// char *param_values[2]={0,0};
-//static const char* const static_ArrayOfConnectKeyWords[] = {"dbname", "port", "user", "password", "host" };
-//static const char* const static_ArrayOfValues[] = {"LocalWeather", "5436", "cjc", NULL, "localhost"};
+
 extern const char *helpMessageArray[];
 
-short doTheWork(EnergyUsage &, bool=true);
 void setUpSiteID(EnergyUsage &, const char *);
 void setUpStartDateTime(EnergyUsage &, const char *);
 void setUpEndDateTime(EnergyUsage &,const char *);
+void doy(EnergyUsage &);
+void doy(EnergyUsage &eu) {
+    const short endOfMonthDays[2][13] = {{0,31,59,90,120,151,181,212,243,273,304,334,365},{0,31,60,91,121,152,182,213,244,273,305,335,366}} ;
+//    short endOfMonthDaysLY[13] = {0,31,60,91,121,152,182,213,244,273,305,335,366};
+    const std::regex justMonth("[^[:digit:]][0-9][0-9][^[:digit:]]"); //NB: [^[:digit:]] means NOT a digit
+    const std::regex justDay("[^[:digit:]][0-9][0-9][[:space:]]"); //NB: [^[:digit:]] means NOT a digit
+    const std::regex justYear("[0-9][0-9][0-9][0-9][^[:digit:]]"); //NB: [^[:digit:]] means NOT a digit
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    if (eu.debug1) {
+        eu.resultYear = regex_search(eu.SDT, eu.mr, justYear);
+        cout << "SDT: " << eu.SDT << endl;    //SDT: '2018-07-29 06:38:00'
+        cout << "mr.str()==>" << eu.mr.str() << "<===" << endl;  // mr.str()==>2018-<===
+        cout << "mr.length(): " << eu.mr.length() << endl; //    mr.length(): 5
+        cout << "mr.position(): " << eu.mr.position() << endl; //     mr.position(): 1
+        cout << "mr.prefix():==>" << eu.mr.prefix()<< "<==" << endl;  //The prefix points to the opening single quote.     mr.prefix():==>'<==
+        cout << "mr.suffix():==>" << eu.mr.suffix()<< "<==" << endl; //     mr.suffix():==>07-29 06:38:00'<==
+        
+        eu.resultMonth = regex_search(eu.SDT,eu.mr, justMonth);
+        cout << "SDT: " << eu.SDT << endl;   //SDT: '2018-07-29 06:38:00'
+        cout << "mr.str()==>" << eu.mr.str() << "<===" << endl; //     mr.str()==>-07-<===
+        cout << "mr.length(): " << eu.mr.length() << endl; //    mr.length(): 4
+        cout << "mr.position(): " << eu.mr.position() << endl;  //    mr.position(): 5
+        cout << "mr.prefix():==>" << eu.mr.prefix()<< "<==" << endl; //    mr.prefix():==>'2018<==
+        cout << "mr.suffix():==>" << eu.mr.suffix()<< "<==" << endl; //    mr.suffix():==>29 06:38:00'<==
+    
+        eu.resultDay = regex_search(eu.SDT, eu.mr, justDay);
+        cout << "SDT: " << eu.SDT << endl;   //SDT: '2018-07-29 06:38:00'
+        cout << "mr.str()==>" << eu.mr.str() << "<===" << endl; //     mr.str()==>-29 <===
+        cout << "mr.length(): " << eu.mr.length() << endl;   //    mr.length(): 4
+        cout << "mr.position(): " << eu.mr.position() << endl; //     mr.position(): 8
+        cout << "mr.prefix():==>" << eu.mr.prefix()<< "<==" << endl; //    mr.prefix():==>'2018-07<==
+        cout << "mr.suffix():==>" << eu.mr.suffix()<< "<==" << endl; //     mr.suffix():==>06:38:00'<==
+    
+
+    }
+    memset(eu.workDOY, NULL, sizeof(eu.workDOY) ); //Start with a clean work buffer
+    for (eu.i=0; eu.i<12; eu.i++) eu.workDOY[eu.i] = *(eu.usdt.ptrStartDate_Time + eu.i+SKIPPASTOPENINGSINGLEQUOTE); //copy into the work buffer the `MM-DD` portion of the `YYYY-MM-DD`
+    *(eu.workDOY + 4) =NULL; //set the `-` character separating the four year characters from the 2 month characters to a string-terminating NULL character.
+    *(eu.workDOY + 7) = NULL; //set the `-` character separating the 2 month characters from the 2 day characters, to a string-terminating NULL character, this way we now have a Month string and a day string.
+    *(eu.workDOY + 10) = NULL; //terminate the 2 day characters to a string-terminating NULL character, this way we now have a day string.
+    eu.years = atoi(eu.workDOY+0);
+    eu.months = (short)atoi(eu.workDOY+5);
+    eu.days = (short)atoi(eu.workDOY+8);
+    if(eu.years>>2 == 0 ) {
+        eu.leapYear = true; //EnergyUsage constructor had initialized this to false.
+        eu.doy = eu.days + endOfMonthDays[SUMMERSEASON][eu.months-1];
+    } else {
+        eu.doy = eu.days + endOfMonthDays[NOTSUMMERSEASON][eu.months-1];
+    } // Assumes False = 0 and True = 1 --V-----------------------------------------------V
+    if (eu.doy >= JUNEFIRST + (short)eu.leapYear && eu.doy <= SEPTFIFTEENTH + (short)eu.leapYear  ) eu.summerSeason=true; //Knowing if we're in summer seanon is important \
+    for determining the m2Kwh usage because it's during summer season that we turn on the "energy glutton" basement dehumidifier \
+    which runs off of the m2kwh meter, thus allowing us the use the proper algorithm for predicting the energy usage accumulated \
+    by the m2kwh meter.
+}
 void setUpSiteID(EnergyUsage &eu, const char *optarg) {
     eu.siteid = optarg;
     eu.shortSiteId = atoi(optarg);
@@ -104,27 +120,31 @@ void setUpSiteID(EnergyUsage &eu, const char *optarg) {
     eu.param_values[DOLLAR6] = optarg; //does $6
 }
 void setUpEndDateTime(EnergyUsage &eu, const char *optarg) {
-    eu.endDateTime = optarg;
+    eu.uedt.endDateTime = optarg;
+    eu.EDT = string(eu.uedt.endDateTime); //Convert the C-style null-terminated character array, containing the end date&time,  to a c++-style string.
     eu.param_values[DOLLAR2] = optarg; //does $2
     eu.param_values[DOLLAR5] = optarg; //does $5
     if(eu.debug2) std::cout << "EndDateTime (reporting value found in command line associated with the `-e` switch)[DOLLAR2]: " <<  eu.param_values[DOLLAR2] << " and [DOLLAR5]: " << eu.param_values[DOLLAR5] << std::endl;
 }
 void setUpStartDateTime(EnergyUsage &eu, const char *optarg) {
-    eu.startDateTime = optarg;
+    eu.usdt.startDateTime = optarg;
+    eu.SDT = string(eu.usdt.startDateTime); //Convert the C-style null-terminated character array, containing the start date&time, to a c++-style string.
     eu.param_values[DOLLAR1] = optarg; //does $1
     eu.param_values[DOLLAR4] = optarg; //does $4
     if(eu.debug2) std::cout << "StartDateTime (reporting value found in command line associated with the `-s` switch)[DOLLAR1]: " <<  eu.param_values[DOLLAR1] << " and [DOLLAR4]: " << eu.param_values[DOLLAR4] << std::endl;
 }
+using namespace std;
 int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P O I N T           M A I N    E N T R Y     P O I N T           M A I N    E N T R Y     P O I N T
     EnergyUsage eu;
     std::ifstream myInFile; //Declare myInFile as the object for processing the input file, if any.
 
-    using namespace std;
+
     static const char  *static_OtherArrayOfValues[] = {eu.defaultDatabaseName, eu.defaultPort, eu.defaultUserID, NULL, eu.defaultHost};
     const char **otherArrayOfValues;
     otherArrayOfValues = static_OtherArrayOfValues;
-    std::cout << "otherArrayOfValues: " << std::hex << otherArrayOfValues << std::endl;
+
     if(eu.debug1) {
+        std::cout << "otherArrayOfValues: " << std::hex << otherArrayOfValues << std::endl;
         for (int i=0; i<5 ; i++) {
             if (*(otherArrayOfValues + i)) {
                 std::cout << i << ". *(otherArrayOfValues + i): " << std::hex << (otherArrayOfValues + i) << "\t" << *(otherArrayOfValues + i) << std::endl;
@@ -140,6 +160,7 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
         {"startDateTime", required_argument, 0, 's'},
         {"endDateTime", required_argument, 0, 'e'},
         {"sql",       required_argument, 0, 'S'},
+        {"tba", no_argument, 0, 'T'},
         {"kelvin", no_argument, 0, 'k'},
         {"port1", required_argument, 0, 'p'},
         {"port2", required_argument, 0, 'P'},
@@ -158,9 +179,9 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
 
     std::cout << "Hello, " << *(argv + 0) << std::endl;
     
-    const char *const commandLineSwitches = "1234hktp:P:o:O:S:f:i:s:e:c:C:";
+    const char *const commandLineSwitches = "1234hktTp:P:o:O:S:f:i:s:e:c:C:";
     int index;
-//    int numberOfMessageSegments = sizeof(helpMessage)/sizeof(eu.defaultUserID);
+//    int numberOfMessageSegments = sizeof(helpMessage)/sizeof(defaultUserID);
     
 //    while ( *(helpMessageArray + numberOfMessageSegments)  )  {numberOfMessageSegments++;} //Loop until we hit the pointer that points to location 0x'00 00 00 00 00 00 00 00', marking the end of the array.
 //    numberOfMessageSegments--; //Back-off 1 becaue the very last entry in the array, that gets counted, is an all zero terminator, but we want our count to indicate the number of valid addresses that point to strings.
@@ -173,6 +194,10 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
         if (iarg < 0) break;
         switch (iarg)
         {
+            case 'T': //Use a temperature based approach rather than a seasonal based approach for determining m2kwh
+                eu.seasonalBasedApproach =false; //Override the default value
+                cout << "Will override the default value [seasonable based approach] and use average daily temperature for determining m2kwh energy usage" << endl;
+                break;
             case 'c': //First Connect string which is used to acquired the data in LocalWeather database's table tbl_poly_fit_with_cov
                 eu.cs1 = (char **)optarg;
                 std::cout << "Non-default Connect String 1, used for accessing each of the 3 energy usage models: " << *eu.cs1 << ", or: " << optarg << std::endl;
@@ -235,9 +260,11 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
                 break;
             case 's':
                 setUpStartDateTime(eu, optarg);
+                cout << "Line " << __LINE__ << " The -s command line switch indicates that the start date&time is: " << optarg << endl;
                 break;
             case 'e':
                 setUpEndDateTime(eu, optarg);
+                cout << "Line " << __LINE__ << " The -e command line switch indicates that the end date&time is: " << optarg << endl;
                 break;
             case 'i':
                 setUpSiteID(eu, optarg);
@@ -259,11 +286,14 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
     std::regex justDate_Time("'20[0-9][0-9]-[0-1][0-9]-[0-3][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9]'");
     std::regex justSiteID("[0-9][0-9]*");
     std::regex justCharString("[a-zA-Z][a-zA-Z0-9]*");
-    if ( eu.dateTime_File ) {
+
+    std::regex justDay("-[0-9][0-9]");
+    if ( eu.dateTime_File != NULL ) {
         eu.reading_date_time_file = true; //
         int lineCounter = 0;
         myInFile.open(eu.ptrToInputFile, std::ios::in);
-        getline(myInFile, eu.ID);  //Let's get rid of the header line. Note that at this point eu.ID contains the entire line of input.
+        getline(myInFile, eu.ID);  //Let's get rid of the header line. \
+        Note that at this point ID contains the entire line of input.
         eu.result = regex_match(eu.ID,eu.mr, justCharString);
         cout << "Length of the header line is " << std::dec << eu.ID.length() << " characters. " << endl;
         while( true  ) {
@@ -273,10 +303,10 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
                 myInFile.close();
                 return(0);
             }
-            if(eu.debug1) cout << "eu.ID, right after getline===>" << eu.ID << "<===" <<endl;
+            if(eu.debug1) cout << "ID, right after getline===>" << eu.ID << "<===" <<endl;
             eu.result = regex_search(eu.ID, eu.mr, justSiteID);
             if (eu.debug1) {
-                cout << "eu.ID: " << eu.ID << endl;
+                cout << "ID: " << eu.ID << endl;
                 cout << "mr.str()==>" << eu.mr.str() << "<===" << endl;
                 cout << "mr.length(): " << eu.mr.length() << endl;
                 cout << "mr.position(): " << eu.mr.position() << endl;
@@ -290,14 +320,14 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
             }
             eu.ID = eu.mr.str();
             getline(myInFile, eu.SDT, '|');
-            if(eu.debug1) cout << "eu.SDT, right after getline===>" << eu.SDT << "<=== Has a length of "<< eu.SDT.length() << " characters." <<endl;
+            if(eu.debug1) cout << "SDT, right after getline===>" << eu.SDT << "<=== Has a length of "<< eu.SDT.length() << " characters." <<endl;
             eu.result = regex_search(eu.SDT, eu.mr, justDate_Time);
             if ( eu.mr.length() < 21 ) {
                 cerr << "Line " << __LINE__ << " of file " << __FILE__ << ": Skipping this record because the length of StartDate&Time is < 21 characters and is therefore considered malformed" << endl;
                 continue;
             }
             if (eu.debug1) {
-                cout << "eu.SDT: " << eu.SDT << endl;
+                cout << "SDT: " << eu.SDT << endl;
                 cout << "mr.str()==>" << eu.mr.str() << "<===" << endl;
                 cout << "mr.length(): " << eu.mr.length() << endl;
                 cout << "mr.position(): " << eu.mr.position() << endl;
@@ -305,19 +335,22 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
                 cout << "mr.suffix():==>" << eu.mr.suffix()<< "<==" << endl;
             }
             eu.SDT = eu.mr.str();
-            eu.ptrStartDate_Time = eu.SDT.c_str(); //Take eu.SDT's c++ string and convert it to a C pointer to string because Postgres likes to work with C-type strings!
-            setUpStartDateTime(eu, eu.ptrStartDate_Time); //Make it look like EndDate_Time is consistent with having come from the command line.
+            eu.usdt.ptrStartDate_Time = eu.SDT.c_str(); //Take SDT's c++ string and convert it to a C pointer to string because Postgres likes to work with C-type strings!
+            setUpStartDateTime(eu, eu.usdt.ptrStartDate_Time); //Make it look like EndDate_Time is consistent with having come from the command line.
             // ---------------------------------------------
+            doy(eu); //sets eu.doy to the day of year represented by the start date. \
+            Also sets the leap year flag to true, if appropriate. \
+            Also sets the summerSeason Flag to true if we're between June 1st and September 15th.
             getline(myInFile, eu.EDT, '|');
-            if(eu.debug1) cout << "eu.EDT, right after getline===>" << eu.EDT << "<=== Has a length of "<< eu.EDT.length() << " characters." <<endl;
-            //            eu.mr.~match_results();
+            if(eu.debug1) cout << "EDT, right after getline===>" << eu.EDT << "<=== Has a length of "<< eu.EDT.length() << " characters." << endl;
+            //            mr.~match_results();
             eu.result = regex_search(eu.EDT, eu.mr, justDate_Time);
             if ( eu.mr.length() < 21 ) {
                 cerr << "Line " << __LINE__ << " of file " << __FILE__ << ": Skipping this record because the length of EndDate&Time is < 21 characters and is therefore considered malformed" << endl;
                 continue;
             }
             if(eu.debug1) {
-                cout << "eu.EDT: " << eu.EDT << endl;
+                cout << "EDT: " << eu.EDT << endl;
                 cout << "mr.str(): " << eu.mr.str() << endl;
                 cout << "mr.length(): " << eu.mr.length() << endl;
                 cout << "mr.position(): " << eu.mr.position() << endl;
@@ -325,230 +358,39 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
                 cout << "mr.suffix():==>" << eu.mr.suffix() << "<==" << endl;
             }
             eu.EDT = eu.mr.str();
-            eu.ptrEndDate_Time = eu.EDT.c_str(); //Take eu.SDT's c++ string and convert it to a C pointer to string because Postgres likes to work with C-type strings!
-            setUpEndDateTime(eu, eu.ptrEndDate_Time); //Make it look like EndDate_Time is consistent with having come from the command line.
+            eu.uedt.ptrEndDate_Time = eu.EDT.c_str(); //Take SDT's c++ string and convert it to a C pointer to string because Postgres likes to work with C-type strings!
+            setUpEndDateTime(eu, eu.uedt.ptrEndDate_Time); //Make it look like EndDate_Time is consistent with having come from the command line.
             // ---------------------------------------------
             getline(myInFile, eu.SID);
-            //            eu.mr.~match_results();
-            //            eu.result = regex_search(eu.SID, eu.mr, justSiteID);
-            //            eu.SID = eu.mr.str();
+            //            mr.~match_results();
+            //            result = regex_search(SID, mr, justSiteID);
+            //            SID = mr.str();
             eu.ptrSiteID = eu.SID.c_str();
             eu.siteid = eu.SID.c_str();
             setUpSiteID(eu, eu.siteid);  //Make it look like siteid is consistent with having come from the command line.
             ++lineCounter;
-            //            eu.mr.~match_results();
+            //            mr.~match_results();
             // ---------------------------------------------
-            eu.rc=doTheWork(eu);
+            eu.rc=eu.doTheWork( );
             if(eu.rc >0) {
-                if(eu.debug1) cerr << "Bad Return code from doTheWork is " << eu.rc << endl;
+                cerr << "1. Bad Return code from doTheWork is " << eu.rc << ", meaining " <<  ptrReturnCodes[eu.rc]  << ". The input file line number was " << eu.siteid << ". " <<endl;
             } else {
-                if(eu.debug1) cout << "Good Return code from doTheWork. Processing continues … " << endl;
+                if(eu.debug1) cout << "2. Good Return code from doTheWork for input file line number " << eu.siteid << ". Processing continues … " << endl;
             }
         }  //End of while loop
-    } //End of if(eu.dateTime_file)
+    } else { //Come here if we do not use the -f command line switch for providing a file with start and stop dates. If we don't supply this file then \
+        we must supply the -s and -e command switches to provide the start date&time and the end date&time, respecively.
+        doy(eu); //sets eu.doy to the day of year represented by the start date. \
+        Also sets the leap year flag to true, if appropriate. \
+        Also sets the summerSeason Flag to true if we're between June 1st and September 15th.
+        eu.rc=eu.doTheWork( );
+        if(eu.rc >0) {
+            cerr << "3. Bad Return code from doTheWork is " << eu.rc << ", meaning: " << ptrReturnCodes[eu.rc]  <<endl;
+        } else {
+            if(eu.debug1) cout << "4. Good Return code from doTheWork. " << endl;
+        }
+    }    //End of if(dateTime_file)
     
-    //   while (eu.reading_date_time_file && (eu.myInFile.rdbuf() >> eu.ptrID >> eu.ptrStartDate_Time >> eu.ptrEndDate_Time >> eu.ptrSiteID )) {}
+    //   while (reading_date_time_file && (myInFile.rdbuf() >> ptrID >> ptrStartDate_Time >> ptrEndDate_Time >> ptrSiteID )) {}
     return 0;
 } //End of main
-//
-// =======================================================================================================================================================
-//
-short doTheWork(EnergyUsage &eu, bool doInsertInto) {
-    
-    //   eu.endDateTime = eu.ptrEndDate_Time;
-    //   eu.startDateTime = eu.ptrStartDate_Time;
-    if (memcmp(eu.startDateTime, eu.endDateTime, strlen(eu.startDateTime)) > 0) {
-        std::cerr << "Interchanging startDateTime with endDateTime because startDateTime > endDateTime. startDateTime must always be less than endDateTime." << std::endl;
-        //These 2 should represent the end date
-        eu.param_values[DOLLAR2] = eu.param_values[DOLLAR1];
-        eu.param_values[DOLLAR5] = eu.param_values[DOLLAR4];
-        //These 2 should represent the start date
-        eu.param_values[DOLLAR1] = eu.param_values[DOLLAR2];
-        eu.param_values[DOLLAR4] = eu.param_values[DOLLAR5];
-        
-    } else {
-        //No need to interchange the start date and end date.
-        eu.param_values[DOLLAR1] = eu.param_values[DOLLAR1];
-        eu.param_values[DOLLAR4] = eu.param_values[DOLLAR4];
-        eu.param_values[DOLLAR2] = eu.param_values[DOLLAR2];
-        eu.param_values[DOLLAR5] = eu.param_values[DOLLAR5];
-    }
-
-    for (eu.loopCounter=0; eu.loopCounter < (&eu.null0 - &eu.tick0); eu.loopCounter++) {
-        *(&eu.tick0 + eu.loopCounter) = *(eu.endDateTime + eu.loopCounter);
-    }
-    eu.tick1 = eu.tick0; //Using the left-most field that delineates the date field, copy this tick to make the right-most tick that delineates the date field so that the date field is festooned with ticks.
-    eu.null0 = NULL; //Turn the ISO 8601 blank into a string-terminating NULL character.
-    eu.tick2 = eu.tick1; //The right-most tick delineating the date field.
-    eu.null1 = NULL; //Make Sure this is zero, too
-    //    memcpy((char *)eu.dTB.h0, eu.endDateTime+11, 9);
-    //    short endLC = (&eu.dTB.h0 - &eu.dTB.tick0);
-    for (eu.loopCounter = 0; eu.loopCounter < (&eu.null1 - &eu.h0); eu.loopCounter++) {
-        //        c = *(eu.endDateTime+i);
-        //        *(ptrToChar + i) = c;
-        //        *(&eu.dTB.tick0 + i) = c;
-        *(&eu.h0 + eu.loopCounter) = *(eu.endDateTime + 12 + eu.loopCounter);
-    }
-    eu.null1 =NULL; //Force this to a string-terminating null character.
-    eu.justDate = &eu.tick0; //The left-most tick marking the start of the date field.
-    eu.justTime = &eu.tick2; //The left-most tick marking the start of the time field.
-    const char * const *paramValues[] = {(const char * const *)eu.startDateTime, (const char * const *)eu.endDateTime, (const char * const *)eu.siteid,  (const char * const *)eu.startDateTime, (const char * const *)eu.endDateTime, (const char * const *)eu.siteid};
-    eu.conn1 = PQconnectdbParams(eu.kw, eu.cs1,0);
-    if (PQstatus(eu.conn1) != CONNECTION_OK ) {
-        std::cerr << "Line " << __LINE__ << ", in File " << __FILE__ << ": Connection to database " << *(eu.cs1 + 0) << " failed because of " << PQerrorMessage(eu.conn1) << std::endl;
-        PQfinish(eu.conn1);
-        exit (PRIMARYCONNECTFAILURE);
-    }
-    for (eu.j=0; eu.j<3; eu.j++) {                      //For each of the three meters, obtain the polynomial coefficients, from, table tbl_poly_fit_with_cov, and store them away for computation.
-        eu.rslt1 = PQexec(eu.conn1, bestKind[eu.j] ); //2018-07-26T08:55:46 replaced moass[j] with bestKind[j] to get the best polynomial correlation coefficients for computing energy usage.
-
-        if (PQresultStatus(eu.rslt1) != PGRES_TUPLES_OK) {
-            std::cerr << "Line " << __LINE__ << ", in File " << __FILE__ << ": Error message from PQexec: " << PQerrorMessage(eu.conn1) << std::endl;
-            PQclear(eu.rslt1);
-            PQfinish(eu.conn1);
-            return(PRIMARYSQLCOMMANDFAILURE);
-        } else {
-            std::cout << "Line " << __LINE__ << ", in file " << __FILE__ << ", rslt1 result status is: " << PQresultStatus(eu.rslt1) << std::endl;
-        }
-        for (eu.i=0; eu.i< 4; eu.i++) {
-            eu.work = PQgetvalue(eu.rslt1, 0, eu.i);
-            eu.coeff[eu.j][eu.i] = atof( eu.work );
-        }
-        PQclear(eu.rslt1);
-    }
-
-    //======================================================================================
-
-    eu.conn2 = PQconnectdbParams(eu.kw, eu.cs2,0);
-    if (PQstatus(eu.conn2) != CONNECTION_OK ) {
-        std::cerr << "Connection to database " << *(eu.cs2 + 0) << " failed because of " << PQerrorMessage(eu.conn2) << std::endl;
-        PQfinish(eu.conn2);
-        return(SECONDARYCONNECTFAILURE);
-    }
-    eu.rslt2 = PQexecParams(eu.conn2, sql_prototype, NUMBEROFPARAMETERS, nullptr, eu.param_values,  nullptr, nullptr, 0);
-    if (PQresultStatus(eu.rslt2) != PGRES_TUPLES_OK) {
-        std::cerr << "Line " << __LINE__ << ", in File " << __FILE__ << ": Error message from PQexec: " << PQerrorMessage(eu.conn2) << ", for SQL command that looks likeL " << sql_prototype << std::endl;
-        PQclear(eu.rslt2);
-        PQfinish(eu.conn2);
-        return (SECONDARYSQLCOMMANDFAILURE);
-    } else {
-        ;
-    }
-    eu.sumOfWeightedTemperatures = atof(PQgetvalue(eu.rslt2, 0, 0));
-    eu.sumOfWeights= atof(PQgetvalue(eu.rslt2, 0, 1));
-    eu.work = PQgetvalue(eu.rslt2, 0, 2);
-    double weightedSum = atof(eu.work);
-    ;
-    
-    VaryingType<short> s;
-    s.in64.d64 = eu.shortSiteId;
-    s.toNetworkByteOrder();
-    eu.NBOsiteID = s.out64.d64;
-    eu.param_values[3] = (const char *)&eu.NBOsiteID;
-
-    VaryingType<float> f;
-    PQclear(eu.rslt2);
-    std::cout << "For start date&time: " << eu.startDateTime << ", end date&time: " << eu.endDateTime << "sum Of Weighted Temperatures: " << eu.sumOfWeightedTemperatures << ", sumOfWeights: " << eu.sumOfWeights << "; average Temperature: " << eu.work << std::endl;
-    eu.computedEnergyUsageM1M2 = (eu.coeff[0][0] + (eu.coeff[0][1] + (eu.coeff[0][2] + eu.coeff[0][3] * weightedSum ) * weightedSum ) * weightedSum);
-    f.in64.d64 = (float)eu.computedEnergyUsageM1M2;
-    f.toNetworkByteOrder(); //Put the computed (modeled) energy usage represented by meter m1m2kwh into NBO.
-    eu.NBOcomputedEnergyUsageM1M2 = f.out64.d64; //Extract the M1M2 energy usage, in NBO and ready for PostgreSQL processing of binary data.
-    eu.param_values[2] = (const char *)&eu.NBOcomputedEnergyUsageM1M2;
-    
-    //    eu.ssM1M2 << eu.computedEnergyUsageM1M2;
-    sprintf(eu.bufM1M2, "%f", eu.computedEnergyUsageM1M2 );
-    // ------------------------------
-    eu.computedEnergyUsageM1 =   (eu.coeff[1][0] + (eu.coeff[1][1] + (eu.coeff[1][2] + eu.coeff[1][3] * weightedSum ) * weightedSum ) * weightedSum);
-    f.in64.d64 = (float)eu.computedEnergyUsageM1;
-    f.toNetworkByteOrder(); //Put the computed (modeled) energy usage represented by meter m1kwh into NBO.
-    eu.NBOcomputedEnergyUsageM1 = f.out64.d64; //Extract the M1 energy usage, in NBO and ready for PostgreSQL processing of binary data.
-    eu.param_values[0] = (const char *)&eu.NBOcomputedEnergyUsageM1;
-    //    eu.ssM1 << eu.computedEnergyUsageM1 ;
-    sprintf(eu.bufM1, "%f", eu.computedEnergyUsageM1 );
-    // ------------------------------
-    eu.computedEnergyUsageM2 =  (eu.coeff[2][0] + (eu.coeff[2][1] + (eu.coeff[2][2] + eu.coeff[2][3] * weightedSum ) * weightedSum ) * weightedSum);
-    f.in64.d64 = (float)eu.computedEnergyUsageM2;
-    f.toNetworkByteOrder(); //Put the computed (modeled) energy usage represented by meter m2kwh into NBO.
-    eu.NBOcomputedEnergyUsageM2 = f.out64.d64; //Extract the M2 energy usage, in NBO and ready for PostgreSQL processing of binary data.
-    eu.param_values[1] = (const char *)&eu.NBOcomputedEnergyUsageM2;
-    sprintf(eu.bufM2, "%f", eu.computedEnergyUsageM2 );
-    //    std::stringstream ssM2;
-    //    eu.ssM2 << eu.computedEnergyUsageM2;
-    // ------------------------------
-    std::cout << "computedEnergyUsageM1M2: " << eu.computedEnergyUsageM1M2 << " kwh; computedEnergyUsageM1: " << eu.computedEnergyUsageM1  << "kwh; computedEnergyUsageM2: " << eu.computedEnergyUsageM1 << " kwh." <<std::endl;
-    //====================================================================================== NOW UPDATE tbl_energy_usage to represent in columns mm1kwh, mm2kwh, and mm1m2kwh the modeled energy usage as we computed, above
-
-    if(doInsertInto) {
-        eu.sw1.Restart();
-        std::stringstream ssInsertInto;
-        ssInsertInto << "INSERT INTO tbl_modeled_energy_usage (date, time, temperature, siteid, mm1kwh, mm2kwh, mm1m2kwh) VALUES(" << eu.justDate << ", " << eu.justTime << ", " << eu.work << ", " << eu.siteid << ", " << eu.bufM1 << ", " << eu.bufM2 << ", " << eu.bufM1M2 << ");";
-        eu.lsw1 = (int)eu.sw1.ElapsedNs();
-        if (eu.debug2) std::cout << "Insert INTO SQL command looks like:\n" << ssInsertInto.str().c_str() << "\nIt took " << eu.lsw1 << " nanoseconds to build this SQL command using c++ ostringstream techniques." << std::endl;
-        eu.ptrToSQL= ssInsertInto.str().c_str();
-        eu.rslt1 = PQexecParams(eu.conn1, eu.ptrToSQL, 0, nullptr, nullptr, nullptr, nullptr, 0);
-        if (  (PQresultStatus(eu.rslt1) != PGRES_COMMAND_OK)  &&  (PQresultStatus(eu.rslt1) != PGRES_TUPLES_OK)  ) {
-            std::cerr << "Error message from PQresultStatus driven by PQexecParams: " << PQerrorMessage(eu.conn1) << std::endl;
-            std::cerr << "Line " << __LINE__ << ", in File " << __FILE__ << ": Message from PQresultStatus driven by PQexecParams: " << PQresStatus(PQresultStatus(eu.rslt1) ) << std::endl;
-            PQclear(eu.rslt1);
-            PQfinish(eu.conn1);
-            return(INSERTINTOFAILURE);
-        } else {
-            if(eu.debug2) {
-                std::cout << "Didn't Fail! Message from PQresultStatus driven by PQexecParams: " << PQresStatus(PQresultStatus(eu.rslt1) ) << "\n";
-                std::cout << "Value returned by this INSERT INTO command: " << PQgetResult(eu.conn1) << std::endl;
-            }
-            PQclear(eu.rslt1);
-        }
-    } else {   ///Come here to set up the update sql command and then execute it.
-        eu.sw1.Restart();
-        std::ostringstream ssUpdate;
-        ssUpdate << "UPDATE tbl_energy_usage will set mm1kwh=" << eu.bufM1 << ", mm2kwh=" << eu.bufM2 << ", mm1m2kwh="  << eu.bufM1M2 << " where siteid=" << eu.siteid << " AND date=" << eu.justDate << " AND time::TEXT=" << eu.justTime;
-        eu.lsw1 = (int)eu.sw1.ElapsedNs();
-
-        eu.sw2.Restart();
-        char *offset;
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, "UPDATE tbl_energy_usage set mm1kwh=");
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, eu.bufM1 );
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, ", mm2kwh=" );
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, eu.bufM2 );
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, ", mm1m2kwh=" );
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, eu.bufM1M2 );
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, " where siteid=");
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, eu.siteid);
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, " AND date=");
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, eu.justDate);
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, " AND time::TEXT=");
-        offset=strcat(eu.bufferUsedForConstructingAnSQLStatement, eu.justTime);
-        eu.lsw2 = (int)eu.sw2.ElapsedNs();
-        const char *strUpdate;
-        eu.ptrToSQL = ssUpdate.str().c_str();
-        ; //strUpdate = ssUpdate;
-        std::cout << "It took " << (int)eu.lsw1 << " nanoseconds to build the UPDATE SQL command using the c++ `stringstream` technique,\n and it took " << (int)eu.lsw2 << " nanoseconds to build the UPDATE SQL command using the convention `C-like` strcat method." << "\nthe command build by the string stream method looks like: " << ssUpdate.str() << "\n while the command built by the conventional `C` strcat method looks like: " << eu.bufferUsedForConstructingAnSQLStatement << ".\nTherefore we can state that the `C` stringcat method is " << (double)eu.lsw1/(double)eu.lsw2 << " times faster than the c++ ostringstream method."  << std::endl;
-        //    param_values[3] = (const char *)&eu.NBOsiteID;
-        eu.rslt2 = PQexecParams(eu.conn2, eu.ptrToSQL, 0, nullptr, nullptr, nullptr, nullptr, 0);
-        if (  (PQresultStatus(eu.rslt2) != PGRES_COMMAND_OK)  &&  (PQresultStatus(eu.rslt2) != PGRES_TUPLES_OK)  ) {
-            std::cout << "Error message from PQresultStatus driven by PQexecParams: " << PQerrorMessage(eu.conn2) << std::endl;
-            std::cout << "Line " << __LINE__ << ", in File " << __FILE__ << ": Message from PQresultStatus driven by PQexecParams: " << PQresStatus(PQresultStatus(eu.rslt2) ) << std::endl;
-            PQclear(eu.rslt2);
-            PQfinish(eu.conn2);
-            return(UPDATESQLFAILURE);
-        } else {
-            if(eu.debug2) {
-                std::cout << "Didn't Fail! Message from PQresultStatus driven by PQexecParams: " << PQresStatus(PQresultStatus(eu.rslt2) ) << std::endl;
-                std::cout << "Value returned by this Update command: " << PQgetResult(eu.conn2) << std::endl;
-            }
-        }
-    }
-//    eu.param_values[4] = (const char *)&eu.justDate;
-//    eu.param_values[5] = (const char *)&eu.justTime;
-
-    eu.clearAllBuffers();  //Just in case we have to come back again.
-//   PQclear(eu.rslt2); Doing this results in ABNORMAL TERMINATION
-//   PQclear(eu.rslt1); Doing this results in ABNORMAL TERMINATION
-    PQfinish(eu.conn2);
-    PQfinish(eu.conn1);
-//  d.VaryingType::~VaryingType(); //Don't need this.
-    f.VaryingType::~VaryingType();
-    s.VaryingType::~VaryingType();
-    return 0;
-}

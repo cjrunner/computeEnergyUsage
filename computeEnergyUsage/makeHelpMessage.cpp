@@ -6,6 +6,7 @@
 //  Copyright © 2018 CliffordCampo. All rights reserved.
 //
 #include <iostream>
+
 #include "makeHelpMessage.hpp"
 extern int nOE;
 extern const char *help_Message[];
@@ -44,3 +45,4 @@ char *MakeHelpMessage::createMessage (const char *nameOfThisProgram) {
     std::strcat(this->ptrToMessage, BFM);
     return this->ptrToMessage;
 }
+

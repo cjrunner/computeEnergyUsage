@@ -27,6 +27,7 @@ public:
     MakeHelpMessage(const char *);
     ~MakeHelpMessage();
     char *createMessage (const char *);
+
     
 };
 

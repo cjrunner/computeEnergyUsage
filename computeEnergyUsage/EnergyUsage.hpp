@@ -13,15 +13,10 @@
 #include <libpq-fe.h>
 #include <regex>
 #include <string>
+#include <strstream>
 #include "StopWatch.hpp"
 #include "DateTimeFields.hpp"
-#define NUMBEROFPARAMETERSFORUPDATE 5
-#define FLOAT4ARRAYOID 1021
-#define FLOAT8ARRAYOID 1022
-#define FLOAT4OID 700
-#define FLOAT8OID 701
-#define TEXTOID 25
-#define INT2OID 21
+#include "SQLSelects.hpp"
 #define DATETIMEBUFFERSIZE 16
 #define NUMBEROFPARAMETERS 6
 #define DOLLAR1 1-1 // convert sql_prototype replacement place-holder, $1, to param_values array index number
@@ -37,8 +32,23 @@
 #define PORTINDEX 1
 #define USERINDEX 2
 #define HOSTINDEX 3
+#define ALLBITSHIGH 0b11111111
+#define CONNECTIONTOHOMESITEISOPEN 0b00000001
+#define CONNECTIONTOREMOTESITEISOPEN 0b00000010
+#define CONN1AND2OPEN 0b00000011
+#define CONN1AND2CLOSED 0
+#define RSLTHOMESITEACTIVE 0b00000001
+#define RSLTREMOTESITEACTIVE 0b00000010
+#define RSLT1AND2ACTIVE 0b00000011
+#define RSLT1AND2INACTIVE 0
+#define SECONDARYSQLCOMMANDFAILURE 1
+#define UPDATESQLFAILURE 2
+#define PRIMARYSQLCOMMANDFAILURE 3
+#define INSERTINTOFAILURE 4
+#define PRIMARYCONNECTFAILURE 5
+#define SECONDARYCONNECTFAILURE 6
 using namespace std;
-class EnergyUsage : public DateTimeFields {
+class EnergyUsage : public DateTimeFields, public SQLSelects {
 private:
     const char *DatabaseName="LocalWeather";
     const char *UserID[2]={"cjc", "cjc"};
@@ -49,16 +59,22 @@ private:
 public:
     char *primaryConnectionString[5];  //Dynamically Allocated. Must be destructed.
     char *secondaryConnectionString[5]; //Dynamically Allocated. Must be destructed.
-    const char *connectString1[5] = {"LocalWeather", "5436", "cjc", "localhost", nullptr};  //Default connection string for the primary connectio. The primary connection is about the sites close to my home [i.e., Paoli, PA] site.
+    const char *connectString1[5] = {"LocalWeather", "5436", "cjc", "localhost", nullptr};  //Default connection string for the primary connection. The primary connection is about the sites close to my home [i.e., Paoli, PA] site.
     const char *connectString2[5] = {"LocalWeather", "5435", "cjc", "localhost", nullptr};  //Default connection string for the second connection. The second connection is about those sites that are not the home [i.e., Paoli] site.
-    
-    PGconn *conn1; // For connecting to, for now, port 5436 which is used for gatering weather data at my home (Paoli) site. Can change in the future.
-    PGresult *rslt1; //For gathering results when connected using conn1, above.
-    PGconn *conn2; // For connecting to any other host (local host or foreign) whose siteid is not local to my home site.
-    PGresult *rslt2; //For gathering results when using conn2, above, connections.
+    char  workDOY[12];
+    int years;
+    short months;
+    short days;
+    short doy;
+    bool leapYear;
+    bool summerSeason;
+    PGconn *connectionToHomeSite; // For connecting to, for now, port 5436 which is used for gatering weather data at my home (Paoli) site. Can change in the future.
+    PGresult *rslt1; //For gathering results when connected using connectionToHomeSite, above.
+    PGconn *remoteSiteConnection; // For connecting to any other host (local host or foreign) whose siteid is not local to my home site.
+    PGresult *rsltRemoteSite; //For gathering results when using remoteSiteConnection, above, connections.
     const char *ptrID;
-    const char *ptrStartDate_Time;
-    const char *ptrEndDate_Time;
+
+
     const char *ptrSiteID;
     const char *ptrToInputFile;
     const char *ptrDefaultInputFile;
@@ -66,6 +82,8 @@ public:
     short rc;
     short shortSiteId;
     short NBOsiteID;
+    unsigned short extractedMonth;
+    unsigned short extractedDay;
     short loopCounter;
     StopWatch sw1;  //Represents Construction of the class name StopWatch.
     StopWatch sw2;  //Represents Construction of the class name StopWatch.
@@ -86,8 +104,14 @@ public:
     const char *defaultUserID;
     const char *defaultPort;
     const char *defaultHost;
-    const char *startDateTime;
-    const char *endDateTime;
+    union {
+       const char *startDateTime;
+       const char *ptrStartDate_Time;
+    } usdt;
+    union {
+        const char *endDateTime;
+        const char *ptrEndDate_Time;
+    } uedt;
     const char *dateTime_File;
     //   DateTimeFields dTB;  Became this class's base class DateTimeFields
     const char *justDate;
@@ -117,6 +141,8 @@ public:
         double weightedSum;
         double averageTemperature;
     };
+    u_int8_t whichConnection;
+    u_int8_t whichActiveRslt;
     string line;
     smatch mr;   //Used for regular expressions.
     bool debug1;
@@ -126,6 +152,10 @@ public:
     bool thread;
     bool reading_date_time_file;
     bool result;
+    bool resultDay;
+    bool resultMonth;
+    bool resultYear;
+    bool seasonalBasedApproach;
     const char *clSQL;
     bool useKelvin;
     const char  *siteid;
@@ -138,10 +168,14 @@ public:
     std::string SDT;
     std::string EDT;
     std::string SID;
+    std::stringstream ssInsertInto;
     char bufferUsedForConstructingAnSQLStatement[SIZEOFSQLBUFFER];
     EnergyUsage(void);
     ~EnergyUsage(void);
     void clearAllBuffers(void);
+    void closeConnections(u_int8_t);
+    void clearActiveRslt(u_int8_t);
+    short doTheWork(bool=true);
 };
 
 #endif /* EnergyUsage_hpp */
