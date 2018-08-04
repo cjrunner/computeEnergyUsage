@@ -17,6 +17,7 @@ const char *help_Message[] = {"\nThis program, ", \
     "\n\t--userid or -U: provides the database name's userid [[default `cjc`]] which is the same for the primay and secondary connections;", \
     "\n\t--hostid1 or -o: provides the IP address of the database server [[default `localhost`]] for the primary connection;", \
     "\n\t--hostid2 or -O: provides the IP address of the database server [[default `localhost`]] for the seconday connection;", \
+    "\n\t--meter2 or -m: provides the actual meter2 energy usage during the period of interest;", \
     "\n\t--port1 or -p: provides the database's port id [[default `5436`]] for the primary connection; ", \
     "\n\t--port2 or -P: provides the database's port id [[default `5435`]] for the secondary connection; ", \
     "\n\t--kelvin or -k: if set then we will be processing temperature data on the Kelvin scale. Default [[ NOT set, using Farenheit scale]];", \

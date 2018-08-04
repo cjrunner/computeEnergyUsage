@@ -17,6 +17,15 @@ extern const char *simpleMoass;
 extern const char *sql_INSERT_INTO_prototype;
 extern const char *sql_UPDATE_prototype;
 extern const int numberOfArrayElements;
+//
+//===========================================================================================
+//
+const char *ptrActualM2="SELECT y.date, y.time, dby.date, dby.time, ((y.m2kwh-dby.m2kwh)/(y.jd-dby.jd)) AS \"M2KWH USAGE\" FROM \
+    (SELECT date, time, m2kwh, jd \
+        FROM tbl_energy_usage ) y INNER JOIN \
+    (SELECT date, time, m2kwh, jd \
+        FROM tbl_energy_usage ) dby \
+            ON dby.jd::INTEGER + 1 = y.jd::INTEGER ORDER BY y.jd desc limit 24;";
 //When we make this a class the Xcode compiler turns stupid and can't determine the size of the array for definitions like this ---+
 //                        +--------------------------------------------------------------------------------------------------------+
 //                        |

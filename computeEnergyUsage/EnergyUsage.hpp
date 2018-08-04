@@ -104,6 +104,10 @@ public:
     const char *defaultUserID;
     const char *defaultPort;
     const char *defaultHost;
+    char justStartDate[16];
+    char justStartTime[16];
+    char justEndDate[16];
+    char justEndTime[16];
     union {
        const char *startDateTime;
        const char *ptrStartDate_Time;
@@ -117,7 +121,7 @@ public:
     const char *justDate;
     const char *justTime;
     double coeff[3][4]; //contains the four polynomial coefficients for each of the 3 meters: m1m2kwh, m1kwh, m2kwh, respectively.
-    
+    double meter2;
     int endID;  //row id of the end date&time record.
     int NBOendID;
     int i;
@@ -164,6 +168,7 @@ public:
     char bufM1M2[BUFSIZE];
     char bufM1[BUFSIZE];
     char bufM2[BUFSIZE];
+    char *ptrMeter2;
     std::string ID;
     std::string SDT;
     std::string EDT;

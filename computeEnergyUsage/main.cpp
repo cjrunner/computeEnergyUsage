@@ -50,22 +50,6 @@ void doy(EnergyUsage &eu) {
     const std::regex justDay("[^[:digit:]][0-9][0-9][[:space:]]"); //NB: [^[:digit:]] means NOT a digit
     const std::regex justYear("[0-9][0-9][0-9][0-9][^[:digit:]]"); //NB: [^[:digit:]] means NOT a digit
 
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     if (eu.debug1) {
         eu.resultYear = regex_search(eu.SDT, eu.mr, justYear);
@@ -121,6 +105,12 @@ void setUpSiteID(EnergyUsage &eu, const char *optarg) {
 }
 void setUpEndDateTime(EnergyUsage &eu, const char *optarg) {
     eu.uedt.endDateTime = optarg;
+    strncpy((eu.justEndDate+1), optarg, 10);
+    *(eu.justEndDate+0) = '\'';
+    *(eu.justEndDate+11) = '\'';
+    strncpy((eu.justEndTime+1), (optarg+11), 8);
+    *(eu.justEndTime+0) = '\'';
+    *(eu.justEndTime+9) = '\'';
     eu.EDT = string(eu.uedt.endDateTime); //Convert the C-style null-terminated character array, containing the end date&time,  to a c++-style string.
     eu.param_values[DOLLAR2] = optarg; //does $2
     eu.param_values[DOLLAR5] = optarg; //does $5
@@ -128,6 +118,12 @@ void setUpEndDateTime(EnergyUsage &eu, const char *optarg) {
 }
 void setUpStartDateTime(EnergyUsage &eu, const char *optarg) {
     eu.usdt.startDateTime = optarg;
+    strncpy((eu.justStartDate+1), optarg, 10);
+    *(eu.justStartDate+0) = '\'';
+    *(eu.justStartDate+11) = '\'';
+    strncpy((eu.justStartTime+1), (optarg+11), 8);
+    *(eu.justStartTime+0) = '\'';
+    *(eu.justStartTime+9) = '\'';
     eu.SDT = string(eu.usdt.startDateTime); //Convert the C-style null-terminated character array, containing the start date&time, to a c++-style string.
     eu.param_values[DOLLAR1] = optarg; //does $1
     eu.param_values[DOLLAR4] = optarg; //does $4
@@ -168,6 +164,7 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
         {"host2", required_argument, 0, 'O'},
         {"dateTimeFile", required_argument, 0, 'f'},
         {"siteID", required_argument, 0, 'i'},
+        {"m2", required_argument, 0, 'm'},
         {"thread", no_argument, 0, 't'},
         {"debug1", no_argument, 0, '1'},
         {"debug2", no_argument, 0, '2'},
@@ -179,7 +176,7 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
 
     std::cout << "Hello, " << *(argv + 0) << std::endl;
     
-    const char *const commandLineSwitches = "1234hktTp:P:o:O:S:f:i:s:e:c:C:";
+    const char *const commandLineSwitches = "1234hktTm:p:P:o:O:S:f:i:s:e:c:C:";
     int index;
 //    int numberOfMessageSegments = sizeof(helpMessage)/sizeof(defaultUserID);
     
@@ -192,8 +189,7 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
     
     while( (iarg = (char)getopt_long(argc, argv, commandLineSwitches, longopts, &index)) != -1)  {  //Jumping though hoops just to make iarg to appear as a character in the debugger.
         if (iarg < 0) break;
-        switch (iarg)
-        {
+        switch (iarg) {
             case 'T': //Use a temperature based approach rather than a seasonal based approach for determining m2kwh
                 eu.seasonalBasedApproach =false; //Override the default value
                 cout << "Will override the default value [seasonable based approach] and use average daily temperature for determining m2kwh energy usage" << endl;
@@ -220,7 +216,7 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
                 std::cout << "Non-default User ID: " << static_OtherArrayOfValues[2] << std::endl;
                 break;
             case 'O': //Hostid
-                //                ptrCLA->_clHostID = optarg;
+                //ptrCLA->_clHostID = optarg;
                 static_OtherArrayOfValues[4] = optarg;
                 std::cout << "Non-default HostID: " <<    static_OtherArrayOfValues[4] << std::endl;
                 eu.connectString2[3] = optarg;
@@ -232,8 +228,13 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
                 eu.primaryConnectionString[PORTINDEX] = optarg;
                 std::cout << "Non-default PortID: " << static_OtherArrayOfValues[1]  << std::endl;
                 break;
+            case 'm':
+                eu.ptrMeter2 = optarg;
+                eu.meter2 = atof(eu.ptrMeter2);
+                std::cout << "Actual Meter2 Usage: " << eu.ptrMeter2 << endl;
+                break;
             case 'P':   //Port of the secondary connection string
-                //               ptrCLA->_clPortID = optarg;
+                //ptrCLA->_clPortID = optarg;
                 static_OtherArrayOfValues[1] = optarg;
                 eu.secondaryConnectionString[PORTINDEX] = optarg;
                 std::cout << "Non-default PortID: " <<  eu.secondaryConnectionString[PORTINDEX] << std::endl;
@@ -268,7 +269,6 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
                 break;
             case 'i':
                 setUpSiteID(eu, optarg);
-                
                 std::cout << "Using siteID [DOLLAR3]: " << eu.param_values[DOLLAR3] << " and [DOLLAR6]" << eu.param_values[DOLLAR6] << std::endl;
                 break;
             default:
@@ -280,8 +280,6 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
                 exit (0);
         } //End of switch
     }  //End of While
-    
-    
 
     std::regex justDate_Time("'20[0-9][0-9]-[0-1][0-9]-[0-3][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9]'");
     std::regex justSiteID("[0-9][0-9]*");

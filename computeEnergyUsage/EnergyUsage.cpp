@@ -19,6 +19,11 @@ EnergyUsage::EnergyUsage() : SQLSelects( ) {
     memset(bufM2, NULL, BUFSIZE);
     memset(bufM1M2, NULL, BUFSIZE);
 */
+
+    memset(justStartDate,NULL, sizeof(justStartDate));
+    memset(justStartTime,NULL, sizeof(justStartTime));
+    memset(justEndDate,NULL, sizeof(justEndDate));
+    memset(justEndTime,NULL, sizeof(justEndTime));
  //   char *primaryConnectionString = new char [5];
     *(primaryConnectionString + 0) = (char *)DatabaseName;
     *(primaryConnectionString + 1) = (char *)Port[0];
@@ -55,7 +60,8 @@ EnergyUsage::EnergyUsage() : SQLSelects( ) {
     remoteSiteConnection = nullptr;  //PostgreSQL DBMS Secondary connection object
     rslt1 = nullptr;  //Result from query upon PostgreSQL database's primary conneciton
     rsltRemoteSite = nullptr;  //Result from query upon PostgreSQL database's secondary connection
-
+    meter2=0;
+    ptrMeter2 = nullptr;
 
 }
 EnergyUsage::~EnergyUsage() {
@@ -219,7 +225,7 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
     sprintf(bufM1, "%f", computedEnergyUsageM1 );
     // ------------------------------
 // ===========================> Here we need to use the seasonal based approach <=============> Here we need to use the seasonal based approach <================>
-    if(seasonalBasedApproach) {
+    if(seasonalBasedApproach && (ptrMeter2 == nullptr) )  {
         //Need to use connectionToHomeSite because connectionToHomeSite is associated with the home-site's LocalWeather database and it is only in the \
         home-site's LocalWeather database where we will find the seasonal energy usage as measured by energy (kwh) meter M2.
         if ( !(whichConnection &= CONNECTIONTOHOMESITEISOPEN) ) { // if remoteSiteConnection is not open -- which would be most unusal at this point in the program -- then open it
@@ -256,6 +262,15 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
         std::cout << "derived Energy Usage M1+M2: " << computedEnergyUsageM1M2 << " kwh; computedEnergyUsageM1: " << computedEnergyUsageM1  << " kwh; seasonal based M2 energy usage is: " << computedEnergyUsageM2 << " kwh." <<std::endl;
         clearActiveRslt(RSLTHOMESITEACTIVE);
 //        closeConnections(CONNECTIONTOREMOTESITEISOPEN);
+    } else if (seasonalBasedApproach && (ptrMeter2 != nullptr) ) {
+        loopCounter=0;
+        while ( *(ptrMeter2 + loopCounter) != '0' ) {
+            bufM2[loopCounter] = *(ptrMeter2 + loopCounter);
+            loopCounter++;
+        }
+        computedEnergyUsageM2 = (float)meter2;
+        computedEnergyUsageM1M2  = computedEnergyUsageM2 + computedEnergyUsageM1;
+        sprintf(bufM1M2, "%f", computedEnergyUsageM1M2 );
     } else {
         
         computedEnergyUsageM2 =  (coeff[2][0] + (coeff[2][1] + (coeff[2][2] + coeff[2][3] * weightedSum ) * weightedSum ) * weightedSum);
@@ -275,9 +290,18 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
     if(doInsertInto) {
         sw1.Restart();
 
-        ssInsertInto << "INSERT INTO tbl_modeled_energy_usage (date, time, temperature, siteid, mm1kwh, mm2kwh, mm1m2kwh) VALUES(" << justDate << ", " << justTime << ", " << this->averageTemperature << ", " << siteid << ", " << bufM1 << ", " << bufM2 << ", " << bufM1M2 << ");";
+        ssInsertInto << "INSERT INTO tbl_modeled_energy_usage (date, time, temperature, siteid, mm1kwh, mm2kwh, mm1m2kwh) VALUES(" << justEndDate << ", " << justEndTime << ", " << this->averageTemperature << ", " << siteid << ", " << bufM1 << ", " << bufM2 << ", " << bufM1M2 << ");";
         lsw1 = (int)sw1.ElapsedNs();
-        if (debug2) std::cout << "Insert INTO SQL command looks like:\n" << ssInsertInto.str().c_str() << "\nIt took " << lsw1 << " nanoseconds to build this SQL command using c++ ostringstream techniques." << std::endl;
+        if (1) {
+            std::cout << "justEndDate: " << justEndDate << std::endl;
+            std::cout << "justEndTime: " << justEndTime << std::endl;
+            std::cout << "averageTemperature: " << this->averageTemperature << std::endl;
+            std::cout << "siteid: " << siteid << std::endl;
+            std::cout << "bufM1: " << bufM1 << std::endl;
+            std::cout << "bufM2: " << bufM2 << std::endl;
+            std::cout << "bufM1M2: " << bufM1M2 << std::endl;
+            std::cout << "Insert INTO SQL command looks like:\n" << ssInsertInto.str().c_str() << "\nIt took " << lsw1 << " nanoseconds to build this SQL command using c++ ostringstream techniques." << std::endl;
+        }
         ptrToSQL= ssInsertInto.str().c_str();
         rslt1 = PQexecParams(connectionToHomeSite, ptrToSQL, 0, nullptr, nullptr, nullptr, nullptr, 0);
         if (  (PQresultStatus(rslt1) != PGRES_COMMAND_OK)  &&  (PQresultStatus(rslt1) != PGRES_TUPLES_OK)  ) {
