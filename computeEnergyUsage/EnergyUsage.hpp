@@ -169,6 +169,10 @@ public:
     char bufM1[BUFSIZE];
     char bufM2[BUFSIZE];
     char *ptrMeter2;
+    char holdsTime[11]="'HH:MM:SS'"; //10+1, allowing for a NULL at the end of the string.
+    char holdsDate[13]="'YYYY-MM-DD'"; //12+1, allowing for a NULL at the end of the string.
+    char *ptrHoldsTime;
+    char *ptrHoldsDate;
     std::string ID;
     std::string SDT;
     std::string EDT;

@@ -20,7 +20,7 @@ MakeHelpMessage::MakeHelpMessage(const char *p) {
     this->ptrToMessage = NULL;
 }
 MakeHelpMessage::~MakeHelpMessage() {
-    std::cout << "In MakeHelpMessage destructor" << std::endl;
+    std::cout << "Line " << __LINE__ << " of file " << __FILE__  << ", In MakeHelpMessage destructor" << std::endl;
     if (this->ptrToMessage != nullptr) {
         delete[] (this->ptrToMessage); //If we acquired storage, clean up the acquired storage
         this->ptrToMessage = nullptr;

@@ -105,29 +105,32 @@ void setUpSiteID(EnergyUsage &eu, const char *optarg) {
 }
 void setUpEndDateTime(EnergyUsage &eu, const char *optarg) {
     eu.uedt.endDateTime = optarg;
-    strncpy((eu.justEndDate+1), optarg, 10);
-    *(eu.justEndDate+0) = '\'';
+    strncpy((eu.justEndDate+1), optarg, 11);
+//    *(eu.justEndDate+0) = '\'';
     *(eu.justEndDate+11) = '\'';
-    strncpy((eu.justEndTime+1), (optarg+11), 8);
+    strncpy((eu.justEndTime+1), (optarg+12), 8);
     *(eu.justEndTime+0) = '\'';
-    *(eu.justEndTime+9) = '\'';
+//    *(eu.justEndTime+9) = '\'';
     eu.EDT = string(eu.uedt.endDateTime); //Convert the C-style null-terminated character array, containing the end date&time,  to a c++-style string.
     eu.param_values[DOLLAR2] = optarg; //does $2
     eu.param_values[DOLLAR5] = optarg; //does $5
-    if(eu.debug2) std::cout << "EndDateTime (reporting value found in command line associated with the `-e` switch)[DOLLAR2]: " <<  eu.param_values[DOLLAR2] << " and [DOLLAR5]: " << eu.param_values[DOLLAR5] << std::endl;
+    if(eu.debug2) std::cout << "Line " << __LINE__ << " of module " << __FILE__  << ":\nEndDateTime (reporting value found in command line associated with the `-e` switch) [DOLLAR2]: " <<  eu.param_values[DOLLAR2] << " and [DOLLAR5]: " << eu.param_values[DOLLAR5] << std::endl;
+    strncpy((eu.holdsDate+1), optarg, 10);
+    strncpy((eu.holdsTime+1), optarg+11, 8);
+    if(eu.debug2) std::cout << "Line " << __LINE__ << " of module " << __FILE__  << ":\nholdsDate looks like: " <<  eu.ptrHoldsDate << ", and holdsTime looks like: " << eu.ptrHoldsTime << std::endl;
 }
 void setUpStartDateTime(EnergyUsage &eu, const char *optarg) {
     eu.usdt.startDateTime = optarg;
-    strncpy((eu.justStartDate+1), optarg, 10);
-    *(eu.justStartDate+0) = '\'';
+    strncpy((eu.justStartDate+1), optarg, 11);
+//    *(eu.justStartDate+0) = '\'';
     *(eu.justStartDate+11) = '\'';
-    strncpy((eu.justStartTime+1), (optarg+11), 8);
+    strncpy((eu.justStartTime+1), (optarg+12), 8);
     *(eu.justStartTime+0) = '\'';
-    *(eu.justStartTime+9) = '\'';
+//    *(eu.justStartTime+9) = '\'';
     eu.SDT = string(eu.usdt.startDateTime); //Convert the C-style null-terminated character array, containing the start date&time, to a c++-style string.
     eu.param_values[DOLLAR1] = optarg; //does $1
     eu.param_values[DOLLAR4] = optarg; //does $4
-    if(eu.debug2) std::cout << "StartDateTime (reporting value found in command line associated with the `-s` switch)[DOLLAR1]: " <<  eu.param_values[DOLLAR1] << " and [DOLLAR4]: " << eu.param_values[DOLLAR4] << std::endl;
+    if(eu.debug2) std::cout << "Line " << __LINE__ << " of module " << __FILE__ << ":\nStartDateTime (reporting value found in command line associated with the `-s` switch) [DOLLAR1]: " <<  eu.param_values[DOLLAR1] << " and [DOLLAR4]: " << eu.param_values[DOLLAR4] << std::endl;
 }
 using namespace std;
 int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P O I N T           M A I N    E N T R Y     P O I N T           M A I N    E N T R Y     P O I N T
@@ -232,6 +235,7 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
                 eu.ptrMeter2 = optarg;
                 eu.meter2 = atof(eu.ptrMeter2);
                 std::cout << "Actual Meter2 Usage: " << eu.ptrMeter2 << endl;
+                eu.seasonalBasedApproach = true; 
                 break;
             case 'P':   //Port of the secondary connection string
                 //ptrCLA->_clPortID = optarg;
@@ -318,9 +322,9 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
             }
             eu.ID = eu.mr.str();
             getline(myInFile, eu.SDT, '|');
-            if(eu.debug1) cout << "SDT, right after getline===>" << eu.SDT << "<=== Has a length of "<< eu.SDT.length() << " characters." <<endl;
+            if(eu.debug1) cout << "Line " << __LINE__ << " of file " << __FILE__ << "SDT, right after getline===>" << eu.SDT << "<=== Has a length of "<< eu.SDT.length() << " characters." <<endl;
             eu.result = regex_search(eu.SDT, eu.mr, justDate_Time);
-            if ( eu.mr.length() < 21 ) {
+            if ( eu.mr.length() != 22 ) {
                 cerr << "Line " << __LINE__ << " of file " << __FILE__ << ": Skipping this record because the length of StartDate&Time is < 21 characters and is therefore considered malformed" << endl;
                 continue;
             }
@@ -340,10 +344,10 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
             Also sets the leap year flag to true, if appropriate. \
             Also sets the summerSeason Flag to true if we're between June 1st and September 15th.
             getline(myInFile, eu.EDT, '|');
-            if(eu.debug1) cout << "EDT, right after getline===>" << eu.EDT << "<=== Has a length of "<< eu.EDT.length() << " characters." << endl;
+            if(eu.debug1) cout << "Line " << __LINE__ << " of file " << __FILE__ << ": EDT, right after getline===>" << eu.EDT << "<=== Has a length of "<< eu.EDT.length() << " characters." << endl;
             //            mr.~match_results();
             eu.result = regex_search(eu.EDT, eu.mr, justDate_Time);
-            if ( eu.mr.length() < 21 ) {
+            if ( eu.mr.length() != 22 ) {
                 cerr << "Line " << __LINE__ << " of file " << __FILE__ << ": Skipping this record because the length of EndDate&Time is < 21 characters and is therefore considered malformed" << endl;
                 continue;
             }
@@ -371,9 +375,9 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
             // ---------------------------------------------
             eu.rc=eu.doTheWork( );
             if(eu.rc >0) {
-                cerr << "1. Bad Return code from doTheWork is " << eu.rc << ", meaining " <<  ptrReturnCodes[eu.rc]  << ". The input file line number was " << eu.siteid << ". " <<endl;
+                cerr << "Line " << __LINE__ << " of file " << __FILE__ << ": 1. Bad Return code from doTheWork is " << eu.rc << ", meaining " <<  ptrReturnCodes[eu.rc]  << ". The input file line number was " << eu.siteid << ". " <<endl;
             } else {
-                if(eu.debug1) cout << "2. Good Return code from doTheWork for input file line number " << eu.siteid << ". Processing continues … " << endl;
+                if(eu.debug1) cout << "Line " << __LINE__ << " of file " << __FILE__ << ": 2. Good Return code from doTheWork for input file line number " << eu.siteid << ". Processing continues … " << endl;
             }
         }  //End of while loop
     } else { //Come here if we do not use the -f command line switch for providing a file with start and stop dates. If we don't supply this file then \
@@ -383,9 +387,9 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
         Also sets the summerSeason Flag to true if we're between June 1st and September 15th.
         eu.rc=eu.doTheWork( );
         if(eu.rc >0) {
-            cerr << "3. Bad Return code from doTheWork is " << eu.rc << ", meaning: " << ptrReturnCodes[eu.rc]  <<endl;
+            cerr << "Line " << __LINE__ << " of file " << __FILE__  << ": 3. Bad Return code from doTheWork is " << eu.rc << ", meaning: " << ptrReturnCodes[eu.rc]  <<endl;
         } else {
-            if(eu.debug1) cout << "4. Good Return code from doTheWork. " << endl;
+            if(eu.debug1) cout << "Line " << __LINE__ << " of file " << __FILE__  << ":4. Good Return code from doTheWork. " << endl;
         }
     }    //End of if(dateTime_file)
     

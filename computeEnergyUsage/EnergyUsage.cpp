@@ -62,6 +62,10 @@ EnergyUsage::EnergyUsage() : SQLSelects( ) {
     rsltRemoteSite = nullptr;  //Result from query upon PostgreSQL database's secondary connection
     meter2=0;
     ptrMeter2 = nullptr;
+    ptrHoldsTime = &holdsTime[0];
+    ptrHoldsDate = &holdsDate[0];
+    strncpy((ptrHoldsTime+0),"'HH:MM:SS'",10);
+    strncpy((ptrHoldsDate+0),"'YYYY-MM-DD'",12);
 
 }
 EnergyUsage::~EnergyUsage() {
@@ -101,7 +105,7 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
     //   endDateTime = ptrEndDate_Time;
     //   startDateTime = ptrStartDate_Time;
     if (memcmp(usdt.startDateTime,  uedt.endDateTime, strlen(usdt.startDateTime)) > 0) {
-        std::cerr << "Interchanging startDateTime with endDateTime because startDateTime > endDateTime. startDateTime must always be less than endDateTime." << std::endl;
+        std::cerr << "Line " << __LINE__ << " of file " << __FILE__ << ", Interchanging startDateTime with endDateTime because startDateTime > endDateTime. startDateTime must always be less than endDateTime." << std::endl;
         //These 2 should represent the end date
         param_values[DOLLAR2] = param_values[DOLLAR1];
         param_values[DOLLAR5] = param_values[DOLLAR4];
@@ -206,7 +210,7 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
     VaryingType<float> f;
     //    PQclear(rsltRemoteSite);
     clearActiveRslt(RSLTREMOTESITEACTIVE);
-    std::cout << "For start date&time: " << usdt.startDateTime << ", end date&time: " << uedt.endDateTime << "sum Of Weighted Temperatures: " << sumOfWeightedTemperatures << ", sumOfWeights: " << sumOfWeights << "; average Temperature: " << this->averageTemperature << std::endl;
+    std::cout << "Line " << __LINE__ << " of file " << __FILE__ << ", For start date&time: " << usdt.startDateTime << ", end date&time: " << uedt.endDateTime << "sum Of Weighted Temperatures: " << sumOfWeightedTemperatures << ", sumOfWeights: " << sumOfWeights << "; average Temperature: " << this->averageTemperature << std::endl;
     computedEnergyUsageM1M2 = (coeff[0][0] + (coeff[0][1] + (coeff[0][2] + coeff[0][3] * weightedSum ) * weightedSum ) * weightedSum);
     f.in64.d64 = (float)computedEnergyUsageM1M2;
     f.toNetworkByteOrder(); //Put the computed (modeled) energy usage represented by meter m1m2kwh into NBO.
@@ -225,7 +229,9 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
     sprintf(bufM1, "%f", computedEnergyUsageM1 );
     // ------------------------------
 // ===========================> Here we need to use the seasonal based approach <=============> Here we need to use the seasonal based approach <================>
+    if(debug2) cout << "Line " << __LINE__ << " of file " << __FILE__ << ": Entering the seasonal based approach processing section of the code. seasonalBasedApproach=" << seasonalBasedApproach << ", and ptrMeter2=" << ptrMeter2  << endl;
     if(seasonalBasedApproach && (ptrMeter2 == nullptr) )  {
+        if(debug2) cout << "Line " << __LINE__ << " of file " << __FILE__ << ": Entering the seasonal based approach processing section of the code. seasonalBasedApproach=" << seasonalBasedApproach << ", and ptrMeter2=" << ptrMeter2  << endl;
         //Need to use connectionToHomeSite because connectionToHomeSite is associated with the home-site's LocalWeather database and it is only in the \
         home-site's LocalWeather database where we will find the seasonal energy usage as measured by energy (kwh) meter M2.
         if ( !(whichConnection &= CONNECTIONTOHOMESITEISOPEN) ) { // if remoteSiteConnection is not open -- which would be most unusal at this point in the program -- then open it
@@ -259,20 +265,26 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
         computedEnergyUsageM1M2  = computedEnergyUsageM2 + computedEnergyUsageM1;
         sprintf(bufM2, "%f", computedEnergyUsageM2 );
         sprintf(bufM1M2, "%f", computedEnergyUsageM1M2 );
-        std::cout << "derived Energy Usage M1+M2: " << computedEnergyUsageM1M2 << " kwh; computedEnergyUsageM1: " << computedEnergyUsageM1  << " kwh; seasonal based M2 energy usage is: " << computedEnergyUsageM2 << " kwh." <<std::endl;
+        std::cout << "Line " << __LINE__ << " of file " << __FILE__ << ", derived Energy Usage M1+M2: " << computedEnergyUsageM1M2 << " kwh; computedEnergyUsageM1: " << computedEnergyUsageM1  << " kwh; seasonal based M2 energy usage is: " << computedEnergyUsageM2 << " kwh." <<std::endl;
         clearActiveRslt(RSLTHOMESITEACTIVE);
 //        closeConnections(CONNECTIONTOREMOTESITEISOPEN);
-    } else if (seasonalBasedApproach && (ptrMeter2 != nullptr) ) {
+    } else if (seasonalBasedApproach && (*ptrMeter2>0) ) {
+// /Users/cjc/Library/Logs/DiagnosticReports/computeEnergyUsage_2018-08-10-074451_wren.crash indicates that program abnormally terminates here. Why?
+        if(debug2) cout << "Line " << __LINE__ << " of file " << __FILE__ << ": Entering the actual meter2 energy-usage-based approach processing section of the code. seasonalBasedApproach=" << seasonalBasedApproach << ", and ptrMeter2=" << ptrMeter2  << endl;
+        /*  I don't understand this. WHY are we doing this?
         loopCounter=0;
         while ( *(ptrMeter2 + loopCounter) != '0' ) {
             bufM2[loopCounter] = *(ptrMeter2 + loopCounter);
             loopCounter++;
         }
+         */
         computedEnergyUsageM2 = (float)meter2;
+        sprintf(bufM2, "%f", computedEnergyUsageM2 );
         computedEnergyUsageM1M2  = computedEnergyUsageM2 + computedEnergyUsageM1;
         sprintf(bufM1M2, "%f", computedEnergyUsageM1M2 );
     } else {
-        
+//Enter here if we wish to use the M2 temperature-based energy usage model.
+        if(debug2) cout << "Line " << __LINE__ << " of file " << __FILE__ << ": Entering the temperature based approach processing section of the code. seasonalBasedApproach=" << seasonalBasedApproach << ", and ptrMeter2=" << ptrMeter2  << endl;
         computedEnergyUsageM2 =  (coeff[2][0] + (coeff[2][1] + (coeff[2][2] + coeff[2][3] * weightedSum ) * weightedSum ) * weightedSum);
         f.in64.d64 = (float)computedEnergyUsageM2;
         f.toNetworkByteOrder(); //Put the computed (modeled) energy usage represented by meter m2kwh into NBO.
@@ -281,7 +293,7 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
         sprintf(bufM2, "%f", computedEnergyUsageM2 );
         //    std::stringstream ssM2;
         //    ssM2 << computedEnergyUsageM2;
-        std::cout << "computedEnergyUsageM1M2: " << computedEnergyUsageM1M2 << " kwh; computedEnergyUsageM1: " << computedEnergyUsageM1  << "kwh; computedEnergyUsageM2: " << computedEnergyUsageM2 << " kwh." <<std::endl;
+        std::cout << "Line " << __LINE__ << " of file " << __FILE__ << ", computedEnergyUsageM1M2: " << computedEnergyUsageM1M2 << " kwh; computedEnergyUsageM1: " << computedEnergyUsageM1  << "kwh; computedEnergyUsageM2: " << computedEnergyUsageM2 << " kwh." <<std::endl;
     }
     // ------------------------------
 
@@ -290,11 +302,11 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
     if(doInsertInto) {
         sw1.Restart();
 
-        ssInsertInto << "INSERT INTO tbl_modeled_energy_usage (date, time, temperature, siteid, mm1kwh, mm2kwh, mm1m2kwh) VALUES(" << justEndDate << ", " << justEndTime << ", " << this->averageTemperature << ", " << siteid << ", " << bufM1 << ", " << bufM2 << ", " << bufM1M2 << ");";
+        ssInsertInto << "INSERT INTO tbl_modeled_energy_usage (date, time, temperature, siteid, mm1kwh, mm2kwh, mm1m2kwh) VALUES(" << ptrHoldsDate << ", " << ptrHoldsTime << ", " << this->averageTemperature << ", " << siteid << ", " << bufM1 << ", " << bufM2 << ", " << bufM1M2 << ");";
         lsw1 = (int)sw1.ElapsedNs();
         if (1) {
-            std::cout << "justEndDate: " << justEndDate << std::endl;
-            std::cout << "justEndTime: " << justEndTime << std::endl;
+            std::cout << "justEndDate: " << justDate << std::endl;
+            std::cout << "justEndTime: " << justTime << std::endl;
             std::cout << "averageTemperature: " << this->averageTemperature << std::endl;
             std::cout << "siteid: " << siteid << std::endl;
             std::cout << "bufM1: " << bufM1 << std::endl;
@@ -303,6 +315,7 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
             std::cout << "Insert INTO SQL command looks like:\n" << ssInsertInto.str().c_str() << "\nIt took " << lsw1 << " nanoseconds to build this SQL command using c++ ostringstream techniques." << std::endl;
         }
         ptrToSQL= ssInsertInto.str().c_str();
+        std::cout << "Line " << __LINE__ << " of file " << __FILE__ << ", ptrToSQL: " << ptrToSQL << std::endl;
         rslt1 = PQexecParams(connectionToHomeSite, ptrToSQL, 0, nullptr, nullptr, nullptr, nullptr, 0);
         if (  (PQresultStatus(rslt1) != PGRES_COMMAND_OK)  &&  (PQresultStatus(rslt1) != PGRES_TUPLES_OK)  ) {
             std::cerr << "Error message from PQresultStatus driven by PQexecParams: " << PQerrorMessage(connectionToHomeSite) << std::endl;
@@ -347,11 +360,11 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
 //        const char *strUpdate;  UNUSED VARIABLE               U N U S E D        V A R I A B L E
         ptrToSQL = ssUpdate.str().c_str();
         ; //strUpdate = ssUpdate;
-        std::cout << "It took " << (int)lsw1 << " nanoseconds to build the UPDATE SQL command using the c++ `stringstream` technique,\n and it took " << (int)lsw2 << " nanoseconds to build the UPDATE SQL command using the convention `C-like` strcat method." << "\nthe command build by the string stream method looks like: " << ssUpdate.str() << "\n while the command built by the conventional `C` strcat method looks like: " << bufferUsedForConstructingAnSQLStatement << ".\nTherefore we can state that the `C` stringcat method is " << (double)lsw1/(double)lsw2 << " times faster than the c++ ostringstream method."  << std::endl;
+        std::cout << "Line " << __LINE__ << " of file " << __FILE__  << ", It took " << (int)lsw1 << " nanoseconds to build the UPDATE SQL command using the c++ `stringstream` technique,\n and it took " << (int)lsw2 << " nanoseconds to build the UPDATE SQL command using the convention `C-like` strcat method." << "\nthe command build by the string stream method looks like: " << ssUpdate.str() << "\n while the command built by the conventional `C` strcat method looks like: " << bufferUsedForConstructingAnSQLStatement << ".\nTherefore we can state that the `C` stringcat method is " << (double)lsw1/(double)lsw2 << " times faster than the c++ ostringstream method."  << std::endl;
         //    eu.param_values[3] = (const char *)&NBOsiteID;
         rsltRemoteSite = PQexecParams(remoteSiteConnection, ptrToSQL, 0, nullptr, nullptr, nullptr, nullptr, 0);
         if (  (PQresultStatus(rsltRemoteSite) != PGRES_COMMAND_OK)  &&  (PQresultStatus(rsltRemoteSite) != PGRES_TUPLES_OK)  ) {
-            std::cout << "Error message from PQresultStatus driven by PQexecParams: " << PQerrorMessage(remoteSiteConnection) << std::endl;
+            std::cout << "Line " << __LINE__ << " of file "  << __FILE__ << ", Error message from PQresultStatus driven by PQexecParams: " << PQerrorMessage(remoteSiteConnection) << std::endl;
             std::cout << "Line " << __LINE__ << ", in File " << __FILE__ << ": Message from PQresultStatus driven by PQexecParams: " << PQresStatus(PQresultStatus(rsltRemoteSite) ) << std::endl;
             //            PQclear(rsltRemoteSite);
             clearActiveRslt(RSLTREMOTESITEACTIVE);
@@ -362,8 +375,8 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
         } else {
             whichActiveRslt |= RSLTREMOTESITEACTIVE; //Indicate rsltRemoteSite is active
             if(debug2) {
-                std::cout << "Didn't Fail! Message from PQresultStatus driven by PQexecParams: " << PQresStatus(PQresultStatus(rsltRemoteSite) ) << std::endl;
-                std::cout << "Value returned by this Update command: " << PQgetResult(remoteSiteConnection) << std::endl;
+                std::cout << "Line " << __LINE__ << " of file " << __FILE__ << ", Didn't Fail! Message from PQresultStatus driven by PQexecParams: " << PQresStatus(PQresultStatus(rsltRemoteSite) ) << std::endl;
+                std::cout << "Line " << __LINE__ << " of file " << __FILE__  << ", Value returned by this Update command: " << PQgetResult(remoteSiteConnection) << std::endl;
             }
         }
         clearActiveRslt(RSLTREMOTESITEACTIVE);
