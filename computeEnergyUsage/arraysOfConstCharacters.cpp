@@ -20,6 +20,17 @@ extern const int numberOfArrayElements;
 //
 //===========================================================================================
 //
+const char *ptrNewActualM2 = "SELECT y.date, y.time, dby.date, dby.time, y.m2kwh AS \"YesterdayM2\", y.m2teslakwh AS \"Yesterday_TeslaKWH\",  \
+dby.m2kwh AS \"DayBeforeYesterdayM2\", dby.m2teslakwh AS \"DayBeforeYesterdayTeslaKWH\",  \
+(((y.m2kwh-dby.m2kwh)-(y.m2teslakwh))/(y.jd-dby.jd)) AS \"M2KWH USAGE\"  \
+FROM  \
+(SELECT date, time, m2kwh, jd, m2teslakwh  \
+ FROM tbl_energy_usage ) y INNER JOIN  \
+(SELECT date, time, m2kwh, jd, m2teslakwh  \
+ FROM tbl_energy_usage ) dby  \
+ON dby.jd::INTEGER + 1 = y.jd::INTEGER ORDER BY y.jd desc LIMIT 24"; //Added 2020-01-29T13:35:37 – for accomodating the m2teslakwh \
+parameter which informs us of the portion of the meter2 reading that is used for charging my Tesla Model 3 (aka, Ginger)
+
 const char *ptrActualM2="SELECT y.date, y.time, dby.date, dby.time, ((y.m2kwh-dby.m2kwh)/(y.jd-dby.jd)) AS \"M2KWH USAGE\" FROM \
     (SELECT date, time, m2kwh, jd \
         FROM tbl_energy_usage ) y INNER JOIN \
@@ -101,7 +112,7 @@ short nbo[] = {0x0000, 0x0100, 0x0200}; //A by-hand rendering of the numbers 0, 
 short *ptrnbo = &nbo[0];
 //===========================================================================================
 //
-const char *sql_INSERT_INTO_prototype = "INSERT INTO tbl_modeled_energy_usage (date, time, temperature, siteid, mm1kwh, mm2kwn, mm1m2kwh) VALUES($1, $2, $3, $4,$5, $6, $7);";
+const char *sql_INSERT_INTO_prototype = "INSERT INTO tbl_modeled_energy_usage (date, time, temperature, siteid, mm1kwh, mm2kwh, mm1m2kwh) VALUES($1, $2, $3, $4,$5, $6, $7);";
 Oid insertIntoTypes[] = {TEXTOID, TEXTOID, FLOAT4OID, INT2OID, FLOAT4OID,FLOAT4OID, FLOAT4OID};
 int paramLengthsForInsert[] = {0,0,4,2,4,4,4};
 int paramFormatsForInsert[] = {0,0,1,1,1,1,1};

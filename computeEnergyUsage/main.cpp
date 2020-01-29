@@ -38,7 +38,7 @@ extern const char *BFM;
 
 
 extern const char *helpMessageArray[];
-
+void setUpEnergyUsedToChargeTesla(EnergyUsage &, const char *); //Added 2020-01-28T17:43:49 to introduce portion of M2 used to charge Tesla
 void setUpSiteID(EnergyUsage &, const char *);
 void setUpStartDateTime(EnergyUsage &, const char *);
 void setUpEndDateTime(EnergyUsage &,const char *);
@@ -103,6 +103,9 @@ void setUpSiteID(EnergyUsage &eu, const char *optarg) {
     eu.param_values[DOLLAR3] = optarg; //does $3
     eu.param_values[DOLLAR6] = optarg; //does $6
 }
+void setUpEnergyUsedToChargeTesla(EnergyUsage &eu, const char *optarg) {
+    eu.adjustM2ForTesla = atoi(optarg); //Convert ASCII to integer value. Note that the constructor should have preset eu.adjustM2ForTesla to 0.
+}
 void setUpEndDateTime(EnergyUsage &eu, const char *optarg) {
     eu.uedt.endDateTime = optarg;
     strncpy((eu.justEndDate+1), optarg, 11);
@@ -159,7 +162,7 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
         {"startDateTime", required_argument, 0, 's'},
         {"endDateTime", required_argument, 0, 'e'},
         {"sql",       required_argument, 0, 'S'},
-        {"tba", no_argument, 0, 'T'},
+        {"tba", no_argument, 0, 't'}, //2020-01-28T17:32:03 – formerly 'T' but changed to 't' so 'T' can be used for Tesla m2 Energy
         {"kelvin", no_argument, 0, 'k'},
         {"port1", required_argument, 0, 'p'},
         {"port2", required_argument, 0, 'P'},
@@ -168,7 +171,8 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
         {"dateTimeFile", required_argument, 0, 'f'},
         {"siteID", required_argument, 0, 'i'},
         {"m2", required_argument, 0, 'm'},
-        {"thread", no_argument, 0, 't'},
+        {"tesla", required_argument, 0, 'T'}, /* 2020-01-28T17:27:20 – NEW: Amount of M2-measured energy used to charge Tesla Model 3 */
+        {"thread", no_argument, 0, 'M'},  /* 2020-01-28T17:28:57 – used to be 't' for multi-thread */
         {"debug1", no_argument, 0, '1'},
         {"debug2", no_argument, 0, '2'},
         {"debug3", no_argument, 0, '3'},
@@ -193,7 +197,7 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
     while( (iarg = (char)getopt_long(argc, argv, commandLineSwitches, longopts, &index)) != -1)  {  //Jumping though hoops just to make iarg to appear as a character in the debugger.
         if (iarg < 0) break;
         switch (iarg) {
-            case 'T': //Use a temperature based approach rather than a seasonal based approach for determining m2kwh
+            case 't': //Use a temperature based approach rather than a seasonal based approach for determining m2kwh
                 eu.seasonalBasedApproach =false; //Override the default value
                 cout << "Will override the default value [seasonable based approach] and use average daily temperature for determining m2kwh energy usage" << endl;
                 break;
@@ -259,7 +263,7 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
             case '4': //Turn on and off the recording of ostringstream data.
                 eu.debug4=true;
                 break;
-            case 't': //If set then doing multithread processing
+            case 'M': //If set then doing multithread processing
                 eu.thread=true;
                 std::cout << BFM <<  "\nRunning in multi-thread mode\n" << BFM << std::endl;
                 break;
@@ -274,6 +278,10 @@ int main(int argc,  char *const argv[]) { ///<======= M A I N    E N T R Y     P
             case 'i':
                 setUpSiteID(eu, optarg);
                 std::cout << "Using siteID [DOLLAR3]: " << eu.param_values[DOLLAR3] << " and [DOLLAR6]" << eu.param_values[DOLLAR6] << std::endl;
+                break;
+            case 'T':
+                setUpEnergyUsedToChargeTesla(eu, optarg);
+                std::cout << "Portion Meter 2 (M2) energy, in kWh, used for charging Tesla: " << eu.adjustM2ForTesla <<std::endl;
                 break;
             default:
                 std::cerr << "Unknown command line parameter: '" << iarg << "', Skipping." << std::endl;

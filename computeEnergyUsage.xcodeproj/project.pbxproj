@@ -38,7 +38,7 @@
 		2B123D2B210228F20086674A /* varyingType.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = varyingType.hpp; sourceTree = "<group>"; };
 		2B123D2C210228F20086674A /* StopWatch.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = StopWatch.hpp; sourceTree = "<group>"; };
 		2B123D2D210228F20086674A /* StopWatch.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = StopWatch.cpp; sourceTree = "<group>"; };
-		2B6BA9A520FFE33A00DCC3E8 /* computeEnergyUsage */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = computeEnergyUsage; sourceTree = BUILT_PRODUCTS_DIR; };
+		2B6BA9A520FFE33A00DCC3E8 /* computeEnergyUsage-r1 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "computeEnergyUsage-r1"; sourceTree = BUILT_PRODUCTS_DIR; };
 		2B6BA9A820FFE33A00DCC3E8 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		2B6BA9AF20FFED1A00DCC3E8 /* EnergyUsage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = EnergyUsage.cpp; sourceTree = "<group>"; };
 		2B6BA9B020FFED1A00DCC3E8 /* EnergyUsage.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = EnergyUsage.hpp; sourceTree = "<group>"; };
@@ -71,7 +71,7 @@
 		2B6BA9A620FFE33A00DCC3E8 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				2B6BA9A520FFE33A00DCC3E8 /* computeEnergyUsage */,
+				2B6BA9A520FFE33A00DCC3E8 /* computeEnergyUsage-r1 */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -115,7 +115,7 @@
 			);
 			name = computeEnergyUsage;
 			productName = computeEnergyUsage;
-			productReference = 2B6BA9A520FFE33A00DCC3E8 /* computeEnergyUsage */;
+			productReference = 2B6BA9A520FFE33A00DCC3E8 /* computeEnergyUsage-r1 */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
@@ -288,7 +288,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=*]" = /usr/local/lib;
 				"OTHER_LDFLAGS[arch=*]" = "-lpq";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "$(TARGET_NAME)-r1";
 			};
 			name = Debug;
 		};

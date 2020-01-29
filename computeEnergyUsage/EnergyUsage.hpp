@@ -52,7 +52,7 @@ class EnergyUsage : public DateTimeFields, public SQLSelects {
 private:
     const char *DatabaseName="LocalWeather";
     const char *UserID[2]={"cjc", "cjc"};
-    const char *Port[2] = {"5436", "5435"};
+    const char *Port[2] = {"5436", "5445"}; //2020-01-28T17:46:36 changed "5435" to "5445" bc port 5435 was replaced with port 5445
     const char *Host[2] = {"localhost", "localhost"};
     const char *defaultInputFile="/Users/cjc/site7_energyUsage.csv";
     const char *keywords[5] = {"dbname", "port", "user", "host", nullptr};   // The field names associated with the primary and secondary connection strings.
@@ -60,7 +60,7 @@ public:
     char *primaryConnectionString[5];  //Dynamically Allocated. Must be destructed.
     char *secondaryConnectionString[5]; //Dynamically Allocated. Must be destructed.
     const char *connectString1[5] = {"LocalWeather", "5436", "cjc", "localhost", nullptr};  //Default connection string for the primary connection. The primary connection is about the sites close to my home [i.e., Paoli, PA] site.
-    const char *connectString2[5] = {"LocalWeather", "5435", "cjc", "localhost", nullptr};  //Default connection string for the second connection. The second connection is about those sites that are not the home [i.e., Paoli] site.
+    const char *connectString2[5] = {"LocalWeather", "5445", "cjc", "localhost", nullptr};  //Default connection string for the second connection. The second connection is about those sites that are not the home [i.e., Paoli] site.
     char  workDOY[12];
     int years;
     short months;
@@ -99,6 +99,9 @@ public:
         const char * const *_paramValues[NUMBEROFPARAMETERS];
         char *paramValues[NUMBEROFPARAMETERS];
     } upv;
+    int  adjustM2ForTesla; //Added 2020-01-28T17:55:12 – contains the portion of energy, in kWh, used to charge my new Tesla Model 3\
+    on this particular day. Default value is zero, as set by this class' constructor (::EnergyUsage). Tesla Model 3 was acquired on\
+    2019-09-20.
     char *ArrayOfPtrTpParamsInNbo[NUMBEROFPARAMETERS];
     const char *defaultDatabaseName;
     const char *defaultUserID;
@@ -179,7 +182,7 @@ public:
     std::string SID;
     std::stringstream ssInsertInto;
     char bufferUsedForConstructingAnSQLStatement[SIZEOFSQLBUFFER];
-    EnergyUsage(void);
+    EnergyUsage(void);  
     ~EnergyUsage(void);
     void clearAllBuffers(void);
     void closeConnections(u_int8_t);

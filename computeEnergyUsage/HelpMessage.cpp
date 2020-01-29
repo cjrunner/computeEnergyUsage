@@ -9,9 +9,9 @@ extern const char *help_Message[];
 extern const char *BFM;
 extern int nOE;
 const char *BFM = " ================================================================================================================================================================== ";
-const char *help_Message[] = {"\nThis program, ", \
-    ",\nis used to obtain a mathematical polynomial function of energy usage wrt temperature with data obtained from the PostgreSQL database, \n", \
-    "named LocalWeather, using table, tbl_energy_usage. \nThe command line parameters for this program are as follows:", \
+const char *help_Message[] = {"\nUsing data obtained from the PostgreSQL database, named LocalWeather, this program, named  ", \
+    ",\ncomputes a mathematical polynomial function of energy usage wrt temperature, \n", \
+    "n, using LocalWeather's table, tbl_energy_usage. \nThe command line parameters for this program are as follows:", \
     "\n\t--dbname or -D: provides the name of the database [[default `LocalWeather`]] which is the same for the primay and secondary connections;", \
     "\n\t--help or -h: provides this help message;", \
     "\n\t--userid or -U: provides the database name's userid [[default `cjc`]] which is the same for the primay and secondary connections;", \
@@ -19,16 +19,16 @@ const char *help_Message[] = {"\nThis program, ", \
     "\n\t--hostid2 or -O: provides the IP address of the database server [[default `localhost`]] for the seconday connection;", \
     "\n\t--meter2 or -m: provides the actual meter2 energy usage during the period of interest, as defined by the -s and -e command line switches.;", \
     "\n\t--port1 or -p: provides the database's port id [[default `5436`]] for the primary connection; ", \
-    "\n\t--port2 or -P: provides the database's port id [[default `5435`]] for the secondary connection; ", \
+    "\n\t--port2 or -P: provides the database's port id [[default `5445`]] for the secondary connection; ", \
     "\n\t--kelvin or -k: if set then we will be processing temperature data on the Kelvin scale. Default [[ NOT set, using Farenheit scale]];", \
     "\n\t--debug1 or -1: provides debugging output of intermediate results in the main.cpp module;", \
     "\n\t--debug2 or -2: provides debugging output of the intermediate results in the selectFromTable.cpp module; this is where the gsl magic happens;", \
     "\n\t--debug3 or -3: provides debugging output of the intermediate results in the insertBucketizedEnergyVariablesIntoTable.cpp module;", \
     "\n\t--debug4 or -4: when present in command line provides the capability of recording ostringstream performance data. Default off.", \
-    "\n\t--tba or -T: when present in command line means that we will be using average daily temperature rather than the default seasonal based approach", \
+    "\n\t--tba or -t: when present in command line means that we will be using average daily temperature rather than the default seasonal based approach", \
     "\n\t  for determining the m2kwh energy usage.", \
     "\n\t--sql or -S: provides SQL statement [[ ***no default***, test purposes only ]];", \
-    "\n\t--col or -t: the presence of the `-t` switch indicates that we should use multi-thread, rather than single thread processing techniques. ; ", \
+    "\n\t--col or -M: the presence of the `-M` switch indicates that we should use multi-thread, rather than single thread processing techniques. ; ", \
     "\n\t THIS MULTI-THREAD CAPABILIY HAS NOT YET BEEN IMPLEMENTED!"
     "\n\t--dateTimeFile or -f: provides the name of a text file, in csv format, where we obtain the start date&time and the end date&time. \n", \
     "      The presence of this file negates and overrides any parameters supplied by the -s and -e command line switches. Each record [line] in \n", \

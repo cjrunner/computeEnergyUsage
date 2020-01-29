@@ -41,10 +41,13 @@ EnergyUsage::EnergyUsage() : SQLSelects( ) {
     clearAllBuffers();
     defaultDatabaseName = DatabaseName;
     defaultUserID = *(UserID + 0 );
-    defaultPort = *(Port +0);
-    defaultHost = *(Host +0 );
+    defaultPort = *(Port + 0 );
+    defaultHost = *(Host + 0 );
     useKelvin = false;
     reading_date_time_file =false;
+    adjustM2ForTesla = 0; //2020-01-28T17:52:52 Added to accomodate the -T (--tesla) command line flag. This default value may change when \
+    we process the command line flags; the presence of the -T (--tesla) flag introduces the amount of energy used to charge my \
+    Tesla Model 3. The absense of the -T (--tesla) flag means we will use this default value.
     dateTime_File = nullptr;
     seasonalBasedApproach = true;
     whichConnection = CONN1AND2CLOSED;
@@ -210,7 +213,7 @@ short EnergyUsage::doTheWork(bool doInsertInto) {
     VaryingType<float> f;
     //    PQclear(rsltRemoteSite);
     clearActiveRslt(RSLTREMOTESITEACTIVE);
-    std::cout << "Line " << __LINE__ << " of file " << __FILE__ << ", For start date&time: " << usdt.startDateTime << ", end date&time: " << uedt.endDateTime << "sum Of Weighted Temperatures: " << sumOfWeightedTemperatures << ", sumOfWeights: " << sumOfWeights << "; average Temperature: " << this->averageTemperature << std::endl;
+    std::cout << "Line " << __LINE__ << " of file " << __FILE__ << ", For start date&time: " << usdt.startDateTime << ", end date&time: " << uedt.endDateTime << ", sum Of Weighted Temperatures: " << sumOfWeightedTemperatures << ", sumOfWeights: " << sumOfWeights << "; average Temperature: " << this->averageTemperature << std::endl;
     computedEnergyUsageM1M2 = (coeff[0][0] + (coeff[0][1] + (coeff[0][2] + coeff[0][3] * weightedSum ) * weightedSum ) * weightedSum);
     f.in64.d64 = (float)computedEnergyUsageM1M2;
     f.toNetworkByteOrder(); //Put the computed (modeled) energy usage represented by meter m1m2kwh into NBO.
